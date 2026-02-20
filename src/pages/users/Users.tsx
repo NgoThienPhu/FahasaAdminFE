@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FiUsers, FiCheck, FiX, FiChevronLeft, FiChevronRight, FiEye, FiUser, FiKey, FiLock, FiUnlock, FiChevronUp, FiChevronDown, FiMail, FiCalendar } from 'react-icons/fi'
+import { FiUsers, FiCheck, FiX, FiChevronLeft, FiChevronRight, FiEye, FiUser, FiKey, FiLock, FiUnlock, FiChevronUp, FiChevronDown, FiMail, FiCalendar, FiSearch } from 'react-icons/fi'
 import userApi from '../../services/apis/userApi'
 import type { User } from '../../services/apis/userApi'
 import Loading from '../../components/Loading/Loading'
@@ -91,6 +91,8 @@ function Users() {
   const [totalItems, setTotalItems] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [searchInput, setSearchInput] = useState('')
+  const [searchKeyword, setSearchKeyword] = useState('')
 
   const fetchList = () => {
     return userApi
@@ -99,6 +101,7 @@ function Users() {
         pageSize: PAGE_SIZE,
         orderBy: sortOrder === 'asc' ? 'ASC' : 'DESC',
         sortBy: sortField,
+        search: searchKeyword || undefined,
       })
       .then((res) => {
         const r = res as unknown as Record<string, unknown>
@@ -131,7 +134,7 @@ function Users() {
         setList([])
       })
       .finally(() => setLoading(false))
-  }, [currentPage, sortField, sortOrder])
+  }, [currentPage, sortField, sortOrder, searchKeyword])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -219,6 +222,32 @@ function Users() {
       </header>
 
       <div className={styles.card}>
+        <div className={styles.toolbar}>
+          <form
+            className={styles.searchForm}
+            onSubmit={(e) => {
+              e.preventDefault()
+              setSearchKeyword(searchInput.trim())
+              setCurrentPage(1)
+            }}
+            role="search"
+          >
+            <span className={styles.searchIcon} aria-hidden>
+              <FiSearch />
+            </span>
+            <input
+              type="search"
+              className={styles.searchInput}
+              placeholder="Tìm theo tên đăng nhập, họ tên, email..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              aria-label="Tìm kiếm tài khoản"
+            />
+            <button type="submit" className={styles.searchBtn}>
+              Tìm kiếm
+            </button>
+          </form>
+        </div>
         {loading ? (
           <div className={styles.tableLoading}>
             <Loading />

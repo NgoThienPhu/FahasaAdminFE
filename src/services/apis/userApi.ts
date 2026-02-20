@@ -23,13 +23,16 @@ interface GetUsersParams {
     pageSize: number;
     orderBy: "ASC" | "DESC";
     sortBy: "username" | "email" | "phoneNumber" | "fullName" | "isActived" | "createdAt";
+    search?: string;
 }
 
 const userApi = {
 
   getUsers(params: GetUsersParams): Promise<APIPaginationSuccessResponse<User[]>> {
+    const search = params.search?.trim()
+    const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
     return apiClient.get(
-      `/accounts?page=${params.page}&pageSize=${params.pageSize}&orderBy=${params.orderBy}&sortBy=${params.sortBy}`
+      `/accounts?page=${params.page}&pageSize=${params.pageSize}&orderBy=${params.orderBy}&sortBy=${params.sortBy}${searchParam}`
     )
   },
 
