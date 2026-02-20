@@ -28,7 +28,7 @@ export const ProtectedRouter: React.FC<ProtectedRouterProps> = ({
     return children;
   } else {
     if (redirectIfAuth) return children;
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/login" replace />;
   }
 
 };

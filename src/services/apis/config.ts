@@ -60,25 +60,34 @@ apiClient.interceptors.response.use(
 
     const response = error.response;
 
-    if (response.status === 401 && response.data.error === "ACCESS_TOKEN_EXPIRED" && !originalRequest._retry) {
+    const isRefreshEndpoint =
+      typeof originalRequest.url === 'string' && originalRequest.url.includes('/auth/refresh');
+
+    if (response.status === 401 && !originalRequest._retry && !isRefreshEndpoint) {
       originalRequest._retry = true;
 
       try {
-        const { refreshToken } = authApi;
-        const response = await refreshToken();
-        const newToken = response.data.accessToken;
+        const refreshResponse = await authApi.refreshToken();
+        const newToken =
+          (refreshResponse as { data?: { accessToken?: string }; accessToken?: string }).data?.accessToken ??
+          (refreshResponse as { accessToken?: string }).accessToken;
 
-        localStorage.setItem('accessToken', newToken);
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-
-        return apiClient(originalRequest);
+        if (newToken) {
+          localStorage.setItem('accessToken', newToken);
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return apiClient(originalRequest);
+        }
       } catch (e) {
         console.error("Làm mới token thất bại:", e);
-
-        // localStorage.removeItem('accessToken');
-        window.location.href = '/auth';
-        return Promise.reject(e);
       }
+
+      localStorage.removeItem('accessToken');
+      window.location.href = '/login';
+      return Promise.reject(error.response?.data ?? { message: "Phiên đăng nhập hết hạn." });
+    }
+
+    if (response.status !== 401) {
+      console.error("Lỗi API:", response.data);
     }
 
     if (response.status === 403) {

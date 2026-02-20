@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import authApi, { type User } from "../services/apis/authApi";
+import { useNotification } from "../contexts/NotificationContext";
 
 interface AuthContextType {
   user: User | null;
@@ -13,6 +14,7 @@ interface AuthContextType {
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { addNotification } = useNotification();
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
 
@@ -30,6 +32,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem("accessToken");
     } catch (error) {
       console.error("Lỗi khi đăng xuất:", error);
+      const msg = (error as { message?: string; error?: string })?.message ?? (error as { message?: string; error?: string })?.error ?? "Đăng xuất thất bại.";
+      addNotification("error", msg);
     } finally {
       setIsLoading(false);
     }

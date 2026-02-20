@@ -1,4 +1,4 @@
-import apiClient, { type APIPaginationSuccessResponse } from './config'
+import apiClient, { type APIPaginationSuccessResponse, type APIResponse } from './config'
 
 interface User {
     id: string;
@@ -14,7 +14,7 @@ interface User {
     }
     gender: "MALE" | "FEMALE" | "OTHER";
     dateOfBirth: string | null;
-    status: "ACTIVE" | "INACTIVE";
+    isActived: boolean;
     createdAt: string;
   }
 
@@ -26,10 +26,23 @@ interface GetUsersParams {
 }
 
 const userApi = {
+
   getUsers(params: GetUsersParams): Promise<APIPaginationSuccessResponse<User[]>> {
     return apiClient.get(
       `/accounts?page=${params.page}&pageSize=${params.pageSize}&orderBy=${params.orderBy}&sortBy=${params.sortBy}`
     )
+  },
+
+  resetPassword(id: string): Promise<APIResponse> {
+    return apiClient.post(`/accounts/${id}/reset-password`);
+  },
+
+  lockUser(id: string): Promise<APIResponse> {
+    return apiClient.post(`/accounts/${id}/lock`);
+  },
+
+  unlockUser(id: string): Promise<APIResponse> {
+    return apiClient.post(`/accounts/${id}/unlock`);
   },
 }
 

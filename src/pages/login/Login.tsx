@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { FiUser, FiLock, FiLogIn } from 'react-icons/fi'
 import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi'
 import { useAuth } from '../../contexts/AuthContext'
+import { useNotification } from '../../contexts/NotificationContext'
 import authApi from '../../services/apis/authApi'
 import type { APIResponseError } from '../../services/apis/config'
 import styles from './Login.module.css'
@@ -10,30 +11,28 @@ import styles from './Login.module.css'
 function Login() {
   const navigate = useNavigate()
   const { login } = useAuth()
+  const { addNotification } = useNotification()
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     username: '',
     password: '',
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState('')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
-    setError('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
 
     if (!formData.username.trim()) {
-      setError('Vui lòng nhập tên đăng nhập.')
+      addNotification('error', 'Vui lòng nhập tên đăng nhập.')
       return
     }
     if (!formData.password) {
-      setError('Vui lòng nhập mật khẩu.')
+      addNotification('error', 'Vui lòng nhập mật khẩu.')
       return
     }
 
@@ -50,7 +49,8 @@ function Login() {
       navigate('/', { replace: true })
     } catch (err) {
       const apiError = err as APIResponseError
-      setError(apiError?.message || apiError?.error || 'Đăng nhập thất bại. Vui lòng thử lại.')
+      const msg = apiError?.message || apiError?.error || 'Đăng nhập thất bại. Vui lòng thử lại.'
+      addNotification('error', msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -68,12 +68,6 @@ function Login() {
         </div>
 
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          {error && (
-            <div className={styles.error} role="alert">
-              {error}
-            </div>
-          )}
-
           <div className={styles.field}>
             <label htmlFor="username" className={styles.label}>
               Tên đăng nhập

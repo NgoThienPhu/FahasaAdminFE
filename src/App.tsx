@@ -7,12 +7,18 @@ import Products from './pages/products'
 import Orders from './pages/orders'
 import './App.css'
 import { ProtectedRouter } from './components/protected_router/ProtectedRouter'
+import Notification from './components/notification/Notification'
 
 function App() {
   return (
     <BrowserRouter>
+      <Notification />
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={
+          <ProtectedRouter redirectIfAuth={true}>
+            <Login />
+          </ProtectedRouter>
+        } />
         <Route path="/" element={
           <ProtectedRouter>
             <DashboardLayout />

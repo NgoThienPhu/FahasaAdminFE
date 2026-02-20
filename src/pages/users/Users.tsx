@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { FiUsers, FiCheck, FiX, FiChevronLeft, FiChevronRight, FiEye, FiUser, FiKey, FiLock, FiUnlock, FiChevronUp, FiChevronDown } from 'react-icons/fi'
+import { FiUsers, FiCheck, FiX, FiChevronLeft, FiChevronRight, FiEye, FiUser, FiKey, FiLock, FiUnlock, FiChevronUp, FiChevronDown, FiMail, FiCalendar } from 'react-icons/fi'
 import userApi from '../../services/apis/userApi'
 import type { User } from '../../services/apis/userApi'
 import Loading from '../../components/Loading/Loading'
+import { useNotification } from '../../contexts/NotificationContext'
 import styles from './Users.module.css'
 
 const PAGE_SIZE = 10
@@ -46,7 +47,7 @@ function mapUserFromApi(user: User): UserListItem {
     gender: user.gender,
     dateOfBirth: user.dateOfBirth,
     phoneNumber: user.phoneNumber?.phoneNumber ?? null,
-    isActived: user.status === 'ACTIVE',
+    isActived: user.isActived,
     createdAt: user.createdAt,
   }
 }
@@ -66,22 +67,33 @@ function formatDateTime(iso: string) {
   })
 }
 
+function getInitials(fullName: string): string {
+  return fullName
+    .trim()
+    .split(/\s+/)
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || '?'
+}
+
 function Users() {
+  const { addNotification } = useNotification()
   const [currentPage, setCurrentPage] = useState(1)
   const [detailUser, setDetailUser] = useState<UserListItem | null>(null)
-  const [statusOverrides, setStatusOverrides] = useState<Record<string, boolean>>({})
+  const [resetConfirmUser, setResetConfirmUser] = useState<UserListItem | null>(null)
+  const [resetConfirmLoading, setResetConfirmLoading] = useState(false)
+  const [lockConfirm, setLockConfirm] = useState<{ user: UserListItem; action: 'lock' | 'unlock' } | null>(null)
+  const [lockConfirmLoading, setLockConfirmLoading] = useState(false)
   const [sortField, setSortField] = useState<SortField>('createdAt')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [list, setList] = useState<UserListItem[]>([])
   const [totalItems, setTotalItems] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setLoading(true)
-    setError(null)
-    userApi
+  const fetchList = () => {
+    return userApi
       .getUsers({
         page: currentPage - 1,
         pageSize: PAGE_SIZE,
@@ -91,7 +103,8 @@ function Users() {
       .then((res) => {
         const r = res as unknown as Record<string, unknown>
         const rawList = (res.data ?? r.content ?? []) as User[]
-        setList(rawList.map(mapUserFromApi))
+        const newList = rawList.map(mapUserFromApi)
+        setList(newList)
         const p = (r.pagination ?? r) as Record<string, unknown>
         const total =
           Number(p.totalItems) ||
@@ -106,9 +119,15 @@ function Users() {
           (total > 0 ? Math.ceil(total / PAGE_SIZE) : 0)
         setTotalItems(total)
         setTotalPages(pages)
+        return newList
       })
+  }
+
+  useEffect(() => {
+    setLoading(true)
+    fetchList()
       .catch((err) => {
-        setError(err?.message ?? 'Không thể tải danh sách người dùng.')
+        addNotification('error', err?.message ?? 'Không thể tải danh sách người dùng.')
         setList([])
       })
       .finally(() => setLoading(false))
@@ -124,17 +143,63 @@ function Users() {
     setCurrentPage(1)
   }
 
-  const getEffectiveStatus = (user: UserListItem) => statusOverrides[user.id] ?? user.isActived
+  const getEffectiveStatus = (user: UserListItem) => user.isActived
 
-  const handleToggleStatus = (user: UserListItem) => {
-    const next = !getEffectiveStatus(user)
-    setStatusOverrides((prev) => ({ ...prev, [user.id]: next }))
-    // TODO: Gọi API cập nhật trạng thái (khóa/mở khóa)
+  const openLockConfirm = (user: UserListItem) => {
+    const effective = getEffectiveStatus(user)
+    setLockConfirm({ user, action: effective ? 'lock' : 'unlock' })
   }
 
-  const handleResetPassword = (user: UserListItem) => {
-    // TODO: Gọi API reset password hoặc mở modal nhập mật khẩu mới
-    alert(`Reset mật khẩu cho ${user.username} – tích hợp API sau.`)
+  const closeLockConfirm = () => {
+    if (!lockConfirmLoading) setLockConfirm(null)
+  }
+
+  const handleConfirmLockUnlock = () => {
+    if (!lockConfirm) return
+    const { user, action } = lockConfirm
+    const next = action === 'unlock'
+    setLockConfirmLoading(true)
+    const apiCall = next ? userApi.unlockUser(user.id) : userApi.lockUser(user.id)
+    apiCall
+      .then(() => fetchList())
+      .then((newList) => {
+        setLockConfirm(null)
+        if (detailUser?.id === user.id && newList) {
+          const updated = newList.find((u) => u.id === user.id)
+          if (updated) setDetailUser(updated)
+        }
+      })
+      .catch((err: { message?: string; error?: string }) => {
+        addNotification('error', err?.message ?? err?.error ?? 'Thao tác khóa/mở khóa thất bại.')
+      })
+      .finally(() => setLockConfirmLoading(false))
+  }
+
+  const openResetConfirm = (user: UserListItem) => {
+    setResetConfirmUser(user)
+  }
+
+  const closeResetConfirm = () => {
+    if (!resetConfirmLoading) setResetConfirmUser(null)
+  }
+
+  const handleConfirmResetPassword = () => {
+    const user = resetConfirmUser
+    if (!user) return
+    setResetConfirmLoading(true)
+    userApi
+      .resetPassword(user.id)
+      .then(() => {
+        setResetConfirmUser(null)
+        addNotification(
+          'success',
+          'Đã gửi yêu cầu đặt lại mật khẩu. Người dùng sẽ nhận mật khẩu mới qua email.'
+        )
+      })
+      .catch((err: { message?: string; error?: string }) => {
+        addNotification('error', err?.message ?? err?.error ?? 'Đặt lại mật khẩu thất bại.')
+      })
+      .finally(() => setResetConfirmLoading(false))
   }
 
   const displayPage = Math.min(Math.max(1, currentPage), totalPages || 1)
@@ -154,11 +219,6 @@ function Users() {
       </header>
 
       <div className={styles.card}>
-        {error && (
-          <div className={styles.errorBanner} role="alert">
-            {error}
-          </div>
-        )}
         {loading ? (
           <div className={styles.tableLoading}>
             <Loading />
@@ -226,7 +286,7 @@ function Users() {
                     </td>
                     <td>{user.phoneNumber ?? '—'}</td>
                     <td className={styles.tdStatus}>
-                      {!effectiveStatus ? (
+                      {effectiveStatus ? (
                         <span className={styles.statusActive}>
                           <FiCheck aria-hidden /> Hoạt động
                         </span>
@@ -251,7 +311,7 @@ function Users() {
                         <button
                           type="button"
                           className={styles.btnAction}
-                          onClick={() => handleResetPassword(user)}
+                          onClick={() => openResetConfirm(user)}
                           title="Reset mật khẩu"
                           aria-label={`Reset mật khẩu ${user.username}`}
                         >
@@ -260,7 +320,7 @@ function Users() {
                         <button
                           type="button"
                           className={styles.btnAction}
-                          onClick={() => handleToggleStatus(user)}
+                          onClick={() => openLockConfirm(user)}
                           title={effectiveStatus ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
                           aria-label={effectiveStatus ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
                         >
@@ -317,6 +377,97 @@ function Users() {
         </div>
       </div>
 
+      {resetConfirmUser && (
+        <div
+          className={styles.modalOverlay}
+          onClick={closeResetConfirm}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-confirm-title"
+        >
+          <div
+            className={styles.confirmModal}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="reset-confirm-title" className={styles.confirmModalTitle}>
+              Xác nhận đặt lại mật khẩu
+            </h2>
+            <p className={styles.confirmModalMessage}>
+              Bạn có chắc muốn đặt lại mật khẩu cho tài khoản <strong>{resetConfirmUser.username}</strong>?
+              Người dùng sẽ nhận mật khẩu mới qua email <strong>{resetConfirmUser.email.email}</strong>.
+            </p>
+            <div className={styles.confirmModalActions}>
+              <button
+                type="button"
+                className={styles.confirmBtnCancel}
+                onClick={closeResetConfirm}
+                disabled={resetConfirmLoading}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className={styles.confirmBtnConfirm}
+                onClick={handleConfirmResetPassword}
+                disabled={resetConfirmLoading}
+              >
+                {resetConfirmLoading ? 'Đang gửi…' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lockConfirm && (
+        <div
+          className={styles.modalOverlay}
+          onClick={closeLockConfirm}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lock-confirm-title"
+        >
+          <div
+            className={styles.confirmModal}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="lock-confirm-title" className={styles.confirmModalTitle}>
+              {lockConfirm.action === 'lock' ? 'Xác nhận khóa tài khoản' : 'Xác nhận mở khóa tài khoản'}
+            </h2>
+            <p className={styles.confirmModalMessage}>
+              {lockConfirm.action === 'lock' ? (
+                <>
+                  Bạn có chắc muốn <strong>khóa</strong> tài khoản <strong>{lockConfirm.user.username}</strong>?
+                  Người dùng sẽ không thể đăng nhập cho đến khi được mở khóa.
+                </>
+              ) : (
+                <>
+                  Bạn có chắc muốn <strong>mở khóa</strong> tài khoản <strong>{lockConfirm.user.username}</strong>?
+                  Người dùng có thể đăng nhập lại.
+                </>
+              )}
+            </p>
+            <div className={styles.confirmModalActions}>
+              <button
+                type="button"
+                className={styles.confirmBtnCancel}
+                onClick={closeLockConfirm}
+                disabled={lockConfirmLoading}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className={styles.confirmBtnConfirm}
+                onClick={handleConfirmLockUnlock}
+                disabled={lockConfirmLoading}
+              >
+                {lockConfirmLoading ? 'Đang xử lý…' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {detailUser && (
         <div
           className={styles.modalOverlay}
@@ -331,7 +482,7 @@ function Users() {
           >
             <div className={styles.modalHeader}>
               <h2 id="user-detail-title" className={styles.modalTitle}>
-                <FiUser aria-hidden /> Chi tiết người dùng
+                Chi tiết người dùng
               </h2>
               <button
                 type="button"
@@ -343,50 +494,101 @@ function Users() {
               </button>
             </div>
             <div className={styles.modalBody}>
-              <dl className={styles.detailList}>
-                <div className={styles.detailRow}>
-                  <dt>Tên đăng nhập</dt>
-                  <dd>{detailUser.username}</dd>
+              <div className={styles.detailProfile}>
+                <div className={styles.detailAvatar} aria-hidden>
+                  {getInitials(detailUser.fullName)}
                 </div>
-                <div className={styles.detailRow}>
-                  <dt>Họ tên</dt>
-                  <dd>{detailUser.fullName}</dd>
-                </div>
-                <div className={styles.detailRow}>
-                  <dt>Email</dt>
-                  <dd>{detailUser.email.email}</dd>
-                </div>
-                <div className={styles.detailRow}>
-                  <dt>Giới tính</dt>
-                  <dd>{GENDER_LABEL[detailUser.gender] ?? detailUser.gender}</dd>
-                </div>
-                <div className={styles.detailRow}>
-                  <dt>Ngày sinh</dt>
-                  <dd>{formatDate(detailUser.dateOfBirth)}</dd>
-                </div>
-                <div className={styles.detailRow}>
-                  <dt>Số điện thoại</dt>
-                  <dd>{detailUser.phoneNumber ?? '—'}</dd>
-                </div>
-                <div className={styles.detailRow}>
-                  <dt>Trạng thái</dt>
-                  <dd>
+                <div className={styles.detailProfileInfo}>
+                  <p className={styles.detailProfileName}>{detailUser.fullName}</p>
+                  <p className={styles.detailProfileUsername}>@{detailUser.username}</p>
+                  <span
+                    className={
+                      detailUser.isActived
+                        ? styles.detailBadgeActive
+                        : styles.detailBadgeInactive
+                    }
+                  >
                     {detailUser.isActived ? (
-                      <span className={styles.statusActive}>
-                        <FiCheck aria-hidden /> Hoạt động
-                      </span>
+                      <><FiCheck aria-hidden /> Hoạt động</>
                     ) : (
-                      <span className={styles.statusInactive}>
-                        <FiX aria-hidden /> Khóa
-                      </span>
+                      <><FiLock aria-hidden /> Đã khóa</>
                     )}
-                  </dd>
+                  </span>
                 </div>
-                <div className={styles.detailRow}>
-                  <dt>Ngày tạo</dt>
-                  <dd>{formatDateTime(detailUser.createdAt)}</dd>
-                </div>
-              </dl>
+              </div>
+
+              <section className={styles.detailSection} aria-labelledby="detail-personal">
+                <h3 id="detail-personal" className={styles.detailSectionTitle}>
+                  <FiUser aria-hidden /> Thông tin cá nhân
+                </h3>
+                <dl className={styles.detailList}>
+                  <div className={styles.detailRow}>
+                    <dt>Tên đăng nhập</dt>
+                    <dd>{detailUser.username}</dd>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <dt>Họ tên</dt>
+                    <dd>{detailUser.fullName}</dd>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <dt>Giới tính</dt>
+                    <dd>{GENDER_LABEL[detailUser.gender] ?? detailUser.gender}</dd>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <dt>Ngày sinh</dt>
+                    <dd>{formatDate(detailUser.dateOfBirth)}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className={styles.detailSection} aria-labelledby="detail-contact">
+                <h3 id="detail-contact" className={styles.detailSectionTitle}>
+                  <FiMail aria-hidden /> Liên hệ
+                </h3>
+                <dl className={styles.detailList}>
+                  <div className={styles.detailRow}>
+                    <dt>Email</dt>
+                    <dd>
+                      <span className={styles.detailValue}>{detailUser.email.email}</span>
+                      {detailUser.email.isVerify && (
+                        <span className={styles.detailVerified} title="Đã xác thực">
+                          <FiCheck aria-hidden /> Đã xác thực
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <dt>Số điện thoại</dt>
+                    <dd>{detailUser.phoneNumber ?? '—'}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className={styles.detailSection} aria-labelledby="detail-account">
+                <h3 id="detail-account" className={styles.detailSectionTitle}>
+                  <FiCalendar aria-hidden /> Tài khoản
+                </h3>
+                <dl className={styles.detailList}>
+                  <div className={styles.detailRow}>
+                    <dt>Trạng thái</dt>
+                    <dd>
+                      {detailUser.isActived ? (
+                        <span className={styles.statusActive}>
+                          <FiCheck aria-hidden /> Hoạt động
+                        </span>
+                      ) : (
+                        <span className={styles.statusInactive}>
+                          <FiX aria-hidden /> Khóa
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <dt>Ngày tạo</dt>
+                    <dd>{formatDateTime(detailUser.createdAt)}</dd>
+                  </div>
+                </dl>
+              </section>
             </div>
             <div className={styles.modalFooter}>
               <button
