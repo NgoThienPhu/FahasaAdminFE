@@ -6,13 +6,18 @@ import Users from './pages/users'
 import Products from './pages/products'
 import Orders from './pages/orders'
 import './App.css'
+import { ProtectedRouter } from './components/protected_router/ProtectedRouter'
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<DashboardLayout />}>
+        <Route path="/" element={
+          <ProtectedRouter>
+            <DashboardLayout />
+          </ProtectedRouter>
+        }>
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="products" element={<Products />} />
