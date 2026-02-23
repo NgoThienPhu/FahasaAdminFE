@@ -1,5 +1,21 @@
 import { useState, useEffect } from 'react'
-import { FiUsers, FiCheck, FiX, FiChevronLeft, FiChevronRight, FiEye, FiUser, FiKey, FiLock, FiUnlock, FiChevronUp, FiChevronDown, FiMail, FiCalendar, FiSearch } from 'react-icons/fi'
+import {
+  FiUsers,
+  FiCheck,
+  FiX,
+  FiChevronLeft,
+  FiChevronRight,
+  FiEye,
+  FiUser,
+  FiKey,
+  FiLock,
+  FiUnlock,
+  FiChevronUp,
+  FiChevronDown,
+  FiMail,
+  FiCalendar,
+  FiSearch,
+} from 'react-icons/fi'
 import userApi from '../../services/apis/userApi'
 import type { User } from '../../services/apis/userApi'
 import Loading from '../../components/Loading/Loading'
@@ -8,17 +24,9 @@ import styles from './Users.module.css'
 
 const PAGE_SIZE = 10
 
+// --- Types ---
 type SortField = 'username' | 'fullName' | 'email' | 'phoneNumber' | 'isActived' | 'createdAt'
 type SortOrder = 'asc' | 'desc'
-
-const SORTABLE_COLUMNS: { field: SortField; label: string }[] = [
-  { field: 'username', label: 'Tên đăng nhập' },
-  { field: 'fullName', label: 'Họ tên' },
-  { field: 'email', label: 'Email' },
-  { field: 'phoneNumber', label: 'Số điện thoại' },
-  { field: 'isActived', label: 'Trạng thái' },
-  { field: 'createdAt', label: 'Ngày tạo' },
-]
 
 export interface UserListItem {
   id: string
@@ -32,12 +40,32 @@ export interface UserListItem {
   createdAt: string
 }
 
+// --- Constants ---
+const SORTABLE_COLUMNS: { field: SortField; label: string }[] = [
+  { field: 'username', label: 'Tên đăng nhập' },
+  { field: 'fullName', label: 'Họ tên' },
+  { field: 'email', label: 'Email' },
+  { field: 'phoneNumber', label: 'Số điện thoại' },
+  { field: 'isActived', label: 'Trạng thái' },
+  { field: 'createdAt', label: 'Ngày tạo' },
+]
+
+const TH_CLASS_BY_FIELD: Record<SortField, string> = {
+  username: styles.thUsername,
+  fullName: styles.thFullName,
+  email: styles.thEmail,
+  phoneNumber: styles.thPhone,
+  isActived: styles.thStatus,
+  createdAt: styles.thCreatedAt,
+}
+
 const GENDER_LABEL: Record<string, string> = {
   MALE: 'Nam',
   FEMALE: 'Nữ',
   OTHER: 'Khác',
 }
 
+// --- Helpers: map API & format ---
 function mapUserFromApi(user: User): UserListItem {
   return {
     id: user.id,
@@ -52,12 +80,35 @@ function mapUserFromApi(user: User): UserListItem {
   }
 }
 
-function formatDate(iso: string | null) {
+function parseUserListResponse(res: unknown): {
+  list: UserListItem[]
+  totalItems: number
+  totalPages: number
+} {
+  const r = res as Record<string, unknown>
+  const rawList = (r.data ?? r.content ?? []) as User[]
+  const list = rawList.map(mapUserFromApi)
+  const p = (r.pagination ?? r) as Record<string, unknown>
+  const totalItems =
+    Number(p.totalItems) ??
+    Number(p.totalElements) ??
+    Number(p.total_items) ??
+    Number(r.totalElements) ??
+    0
+  const totalPages =
+    Number(p.totalPages) ??
+    Number(p.total_pages) ??
+    Number(r.totalPages) ??
+    (totalItems > 0 ? Math.ceil(totalItems / PAGE_SIZE) : 0)
+  return { list, totalItems, totalPages }
+}
+
+function formatDate(iso: string | null): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('vi-VN')
 }
 
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('vi-VN', {
     day: '2-digit',
     month: '2-digit',
@@ -77,14 +128,47 @@ function getInitials(fullName: string): string {
     .toUpperCase() || '?'
 }
 
+// --- Component: cột header có nút sắp xếp ---
+function ThSort({
+  field,
+  label,
+  className,
+  currentField,
+  currentOrder,
+  onSort,
+}: {
+  field: SortField
+  label: string
+  className?: string
+  currentField: SortField
+  currentOrder: SortOrder
+  onSort: (field: SortField) => void
+}) {
+  const isActive = currentField === field
+  return (
+    <th className={className}>
+      <button type="button" className={styles.thSortBtn} onClick={() => onSort(field)}>
+        <span>{label}</span>
+        {isActive ? (
+          currentOrder === 'asc' ? (
+            <FiChevronUp className={styles.sortIconActive} aria-hidden />
+          ) : (
+            <FiChevronDown className={styles.sortIconActive} aria-hidden />
+          )
+        ) : (
+          <span className={styles.sortIconHint} aria-label="Có thể sắp xếp">
+            <FiChevronUp className={styles.sortChevron} aria-hidden />
+            <FiChevronDown className={styles.sortChevron} aria-hidden />
+          </span>
+        )}
+      </button>
+    </th>
+  )
+}
+
 function Users() {
   const { addNotification } = useNotification()
   const [currentPage, setCurrentPage] = useState(1)
-  const [detailUser, setDetailUser] = useState<UserListItem | null>(null)
-  const [resetConfirmUser, setResetConfirmUser] = useState<UserListItem | null>(null)
-  const [resetConfirmLoading, setResetConfirmLoading] = useState(false)
-  const [lockConfirm, setLockConfirm] = useState<{ user: UserListItem; action: 'lock' | 'unlock' } | null>(null)
-  const [lockConfirmLoading, setLockConfirmLoading] = useState(false)
   const [sortField, setSortField] = useState<SortField>('createdAt')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [list, setList] = useState<UserListItem[]>([])
@@ -93,6 +177,12 @@ function Users() {
   const [loading, setLoading] = useState(true)
   const [searchInput, setSearchInput] = useState('')
   const [searchKeyword, setSearchKeyword] = useState('')
+
+  const [detailUser, setDetailUser] = useState<UserListItem | null>(null)
+  const [resetConfirmUser, setResetConfirmUser] = useState<UserListItem | null>(null)
+  const [resetConfirmLoading, setResetConfirmLoading] = useState(false)
+  const [lockConfirm, setLockConfirm] = useState<{ user: UserListItem; action: 'lock' | 'unlock' } | null>(null)
+  const [lockConfirmLoading, setLockConfirmLoading] = useState(false)
 
   const fetchList = () => {
     return userApi
@@ -104,22 +194,8 @@ function Users() {
         search: searchKeyword || undefined,
       })
       .then((res) => {
-        const r = res as unknown as Record<string, unknown>
-        const rawList = (res.data ?? r.content ?? []) as User[]
-        const newList = rawList.map(mapUserFromApi)
+        const { list: newList, totalItems: total, totalPages: pages } = parseUserListResponse(res)
         setList(newList)
-        const p = (r.pagination ?? r) as Record<string, unknown>
-        const total =
-          Number(p.totalItems) ||
-          Number(p.totalElements) ||
-          Number(p.total_items) ||
-          Number(r.totalElements) ||
-          0
-        const pages =
-          Number(p.totalPages) ||
-          Number(p.total_pages) ||
-          Number(r.totalPages) ||
-          (total > 0 ? Math.ceil(total / PAGE_SIZE) : 0)
         setTotalItems(total)
         setTotalPages(pages)
         return newList
@@ -129,8 +205,8 @@ function Users() {
   useEffect(() => {
     setLoading(true)
     fetchList()
-      .catch((err) => {
-        addNotification('error', err?.message ?? 'Không thể tải danh sách người dùng.')
+      .catch(() => {
+        addNotification('error', 'Không thể tải danh sách người dùng.')
         setList([])
       })
       .finally(() => setLoading(false))
@@ -146,11 +222,18 @@ function Users() {
     setCurrentPage(1)
   }
 
-  const getEffectiveStatus = (user: UserListItem) => user.isActived
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    setSearchKeyword(searchInput.trim())
+    setCurrentPage(1)
+  }
+
+  const displayPage = Math.min(Math.max(1, currentPage), totalPages || 1)
+  const from = totalItems === 0 ? 0 : (displayPage - 1) * PAGE_SIZE + 1
+  const to = Math.min(displayPage * PAGE_SIZE, totalItems)
 
   const openLockConfirm = (user: UserListItem) => {
-    const effective = getEffectiveStatus(user)
-    setLockConfirm({ user, action: effective ? 'lock' : 'unlock' })
+    setLockConfirm({ user, action: user.isActived ? 'lock' : 'unlock' })
   }
 
   const closeLockConfirm = () => {
@@ -160,14 +243,14 @@ function Users() {
   const handleConfirmLockUnlock = () => {
     if (!lockConfirm) return
     const { user, action } = lockConfirm
-    const next = action === 'unlock'
+    const isUnlock = action === 'unlock'
     setLockConfirmLoading(true)
-    const apiCall = next ? userApi.unlockUser(user.id) : userApi.lockUser(user.id)
+    const apiCall = isUnlock ? userApi.unlockUser(user.id) : userApi.lockUser(user.id)
     apiCall
       .then(() => fetchList())
       .then((newList) => {
         setLockConfirm(null)
-        if (detailUser?.id === user.id && newList) {
+        if (detailUser?.id === user.id && newList?.length) {
           const updated = newList.find((u) => u.id === user.id)
           if (updated) setDetailUser(updated)
         }
@@ -178,10 +261,7 @@ function Users() {
       .finally(() => setLockConfirmLoading(false))
   }
 
-  const openResetConfirm = (user: UserListItem) => {
-    setResetConfirmUser(user)
-  }
-
+  const openResetConfirm = (user: UserListItem) => setResetConfirmUser(user)
   const closeResetConfirm = () => {
     if (!resetConfirmLoading) setResetConfirmUser(null)
   }
@@ -205,11 +285,6 @@ function Users() {
       .finally(() => setResetConfirmLoading(false))
   }
 
-  const displayPage = Math.min(Math.max(1, currentPage), totalPages || 1)
-  const from = totalItems === 0 ? 0 : (displayPage - 1) * PAGE_SIZE + 1
-  const to = Math.min(displayPage * PAGE_SIZE, totalItems)
-  const paginatedUsers = list
-
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -223,15 +298,7 @@ function Users() {
 
       <div className={styles.card}>
         <div className={styles.toolbar}>
-          <form
-            className={styles.searchForm}
-            onSubmit={(e) => {
-              e.preventDefault()
-              setSearchKeyword(searchInput.trim())
-              setCurrentPage(1)
-            }}
-            role="search"
-          >
+          <form className={styles.searchForm} onSubmit={handleSearch} role="search">
             <span className={styles.searchIcon} aria-hidden>
               <FiSearch />
             </span>
@@ -248,121 +315,95 @@ function Users() {
             </button>
           </form>
         </div>
+
         {loading ? (
           <div className={styles.tableLoading}>
             <Loading />
           </div>
         ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th className={styles.thId}>STT</th>
-                {SORTABLE_COLUMNS.map(({ field, label }) => (
-                  <th
-                    key={field}
-                    className={
-                      field === 'username'
-                        ? styles.thUsername
-                        : field === 'fullName'
-                          ? styles.thFullName
-                          : field === 'email'
-                            ? styles.thEmail
-                            : field === 'phoneNumber'
-                              ? styles.thPhone
-                              : field === 'isActived'
-                                ? styles.thStatus
-                                : field === 'createdAt'
-                                  ? styles.thCreatedAt
-                                  : undefined
-                    }
-                  >
-                    <button
-                      type="button"
-                      className={styles.thSortBtn}
-                      onClick={() => handleSort(field)}
-                    >
-                      <span>{label}</span>
-                      {sortField === field ? (
-                        sortOrder === 'asc' ? (
-                          <FiChevronUp className={styles.sortIconActive} aria-hidden />
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th className={styles.thId}>STT</th>
+                  {SORTABLE_COLUMNS.map(({ field, label }) => (
+                    <ThSort
+                      key={field}
+                      field={field}
+                      label={label}
+                      className={TH_CLASS_BY_FIELD[field]}
+                      currentField={sortField}
+                      currentOrder={sortOrder}
+                      onSort={handleSort}
+                    />
+                  ))}
+                  <th className={styles.thAction}>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((user, index) => {
+                  const stt = (displayPage - 1) * PAGE_SIZE + index + 1
+                  const isActive = user.isActived
+                  return (
+                    <tr key={user.id}>
+                      <td className={styles.tdId}>{stt}</td>
+                      <td className={styles.tdUsername}>{user.username}</td>
+                      <td className={styles.tdFullName} title={user.fullName}>
+                        {user.fullName}
+                      </td>
+                      <td className={styles.tdEmail} title={user.email.email}>
+                        <span className={styles.email}>{user.email.email}</span>
+                      </td>
+                      <td>{user.phoneNumber ?? '—'}</td>
+                      <td className={styles.tdStatus}>
+                        {isActive ? (
+                          <span className={styles.statusActive}>
+                            <FiCheck aria-hidden /> Hoạt động
+                          </span>
                         ) : (
-                          <FiChevronDown className={styles.sortIconActive} aria-hidden />
-                        )
-                      ) : (
-                        <span className={styles.sortIconHint} aria-label="Có thể sắp xếp">
-                          <FiChevronUp className={styles.sortChevron} aria-hidden />
-                          <FiChevronDown className={styles.sortChevron} aria-hidden />
-                        </span>
-                      )}
-                    </button>
-                  </th>
-                ))}
-                <th className={styles.thAction}>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedUsers.map((user, index) => {
-                const effectiveStatus = getEffectiveStatus(user)
-                const stt = (displayPage - 1) * PAGE_SIZE + index + 1
-                return (
-                  <tr key={user.id}>
-                    <td className={styles.tdId}>{stt}</td>
-                    <td className={styles.tdUsername}>{user.username}</td>
-                    <td className={styles.tdFullName} title={user.fullName}>{user.fullName}</td>
-                    <td className={styles.tdEmail} title={user.email.email}>
-                      <span className={styles.email}>{user.email.email}</span>
-                    </td>
-                    <td>{user.phoneNumber ?? '—'}</td>
-                    <td className={styles.tdStatus}>
-                      {effectiveStatus ? (
-                        <span className={styles.statusActive}>
-                          <FiCheck aria-hidden /> Hoạt động
-                        </span>
-                      ) : (
-                        <span className={styles.statusInactive}>
-                          <FiX aria-hidden /> Khóa
-                        </span>
-                      )}
-                    </td>
-                    <td className={styles.tdCreatedAt}>{formatDateTime(user.createdAt)}</td>
-                    <td className={styles.tdAction}>
-                      <div className={styles.actionGroup}>
-                        <button
-                          type="button"
-                          className={styles.btnAction}
-                          onClick={() => setDetailUser(user)}
-                          title="Xem chi tiết"
-                          aria-label={`Xem chi tiết ${user.fullName}`}
-                        >
-                          <FiEye aria-hidden />
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.btnAction}
-                          onClick={() => openResetConfirm(user)}
-                          title="Reset mật khẩu"
-                          aria-label={`Reset mật khẩu ${user.username}`}
-                        >
-                          <FiKey aria-hidden />
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.btnAction}
-                          onClick={() => openLockConfirm(user)}
-                          title={effectiveStatus ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                          aria-label={effectiveStatus ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
-                        >
-                          {effectiveStatus ? <FiLock aria-hidden /> : <FiUnlock aria-hidden />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                          <span className={styles.statusInactive}>
+                            <FiX aria-hidden /> Khóa
+                          </span>
+                        )}
+                      </td>
+                      <td className={styles.tdCreatedAt}>{formatDateTime(user.createdAt)}</td>
+                      <td className={styles.tdAction}>
+                        <div className={styles.actionGroup}>
+                          <button
+                            type="button"
+                            className={styles.btnAction}
+                            onClick={() => setDetailUser(user)}
+                            title="Xem chi tiết"
+                            aria-label={`Xem chi tiết ${user.fullName}`}
+                          >
+                            <FiEye aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.btnAction}
+                            onClick={() => openResetConfirm(user)}
+                            title="Reset mật khẩu"
+                            aria-label={`Reset mật khẩu ${user.username}`}
+                          >
+                            <FiKey aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.btnAction}
+                            onClick={() => openLockConfirm(user)}
+                            title={isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                            aria-label={isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                          >
+                            {isActive ? <FiLock aria-hidden /> : <FiUnlock aria-hidden />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
         <div className={styles.pagination}>
@@ -406,6 +447,7 @@ function Users() {
         </div>
       </div>
 
+      {/* Modal: Xác nhận đặt lại mật khẩu */}
       {resetConfirmUser && (
         <div
           className={styles.modalOverlay}
@@ -414,10 +456,7 @@ function Users() {
           aria-modal="true"
           aria-labelledby="reset-confirm-title"
         >
-          <div
-            className={styles.confirmModal}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
             <h2 id="reset-confirm-title" className={styles.confirmModalTitle}>
               Xác nhận đặt lại mật khẩu
             </h2>
@@ -447,6 +486,7 @@ function Users() {
         </div>
       )}
 
+      {/* Modal: Xác nhận khóa / mở khóa */}
       {lockConfirm && (
         <div
           className={styles.modalOverlay}
@@ -455,10 +495,7 @@ function Users() {
           aria-modal="true"
           aria-labelledby="lock-confirm-title"
         >
-          <div
-            className={styles.confirmModal}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
             <h2 id="lock-confirm-title" className={styles.confirmModalTitle}>
               {lockConfirm.action === 'lock' ? 'Xác nhận khóa tài khoản' : 'Xác nhận mở khóa tài khoản'}
             </h2>
@@ -497,6 +534,7 @@ function Users() {
         </div>
       )}
 
+      {/* Modal: Chi tiết người dùng */}
       {detailUser && (
         <div
           className={styles.modalOverlay}
@@ -505,10 +543,7 @@ function Users() {
           aria-modal="true"
           aria-labelledby="user-detail-title"
         >
-          <div
-            className={styles.modal}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h2 id="user-detail-title" className={styles.modalTitle}>
                 Chi tiết người dùng
@@ -532,9 +567,7 @@ function Users() {
                   <p className={styles.detailProfileUsername}>@{detailUser.username}</p>
                   <span
                     className={
-                      detailUser.isActived
-                        ? styles.detailBadgeActive
-                        : styles.detailBadgeInactive
+                      detailUser.isActived ? styles.detailBadgeActive : styles.detailBadgeInactive
                     }
                   >
                     {detailUser.isActived ? (
@@ -620,11 +653,7 @@ function Users() {
               </section>
             </div>
             <div className={styles.modalFooter}>
-              <button
-                type="button"
-                className={styles.btnClose}
-                onClick={() => setDetailUser(null)}
-              >
+              <button type="button" className={styles.btnClose} onClick={() => setDetailUser(null)}>
                 Đóng
               </button>
             </div>
