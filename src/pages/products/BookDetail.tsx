@@ -1,0 +1,582 @@
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { FiArrowLeft, FiEdit2, FiX, FiUser, FiHash, FiTag, FiCalendar, FiDollarSign, FiFileText, FiImage, FiPlus } from 'react-icons/fi'
+import { useNotification } from '../../contexts/NotificationContext'
+import type { Book } from './booksData'
+import { getBookById, MOCK_CATEGORIES, getCategoryName } from './booksData'
+import styles from './BookDetail.module.css'
+
+type EditFormData = {
+  title: string
+  description: string
+  author: string
+  publisher: string
+  isbn: string
+  categoryId: string
+  publishDate: string
+}
+
+function getCurrentPrice(prices?: Book['bookPrices']): number | null {
+  if (!prices?.length) return null
+  const now = new Date().toISOString()
+  const active = prices.find((p) => {
+    const from = p.effectiveFrom ?? ''
+    const to = p.effectiveTo ?? '9999'
+    return from <= now && now < to
+  })
+  const price = active ?? prices[prices.length - 1]
+  return price?.salePrice ?? price?.listPrice ?? null
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
+}
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('vi-VN')
+}
+
+function BookDetail() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { addNotification } = useNotification()
+
+  const bookFromState = (location.state as { book?: Book })?.book
+  const initialBook = bookFromState ?? (id ? getBookById(id) : undefined)
+
+  const [book, setBook] = useState<Book | undefined>(initialBook)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState<EditFormData>({
+    title: '',
+    description: '',
+    author: '',
+    publisher: '',
+    isbn: '',
+    categoryId: '',
+    publishDate: '',
+  })
+  const [editFormErrors, setEditFormErrors] = useState<Partial<Record<keyof EditFormData, string>>>({})
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
+  const [imageError, setImageError] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [extraImages, setExtraImages] = useState<string[]>([])
+
+  useEffect(() => {
+    if (!id) return
+    if (bookFromState) {
+      setBook(bookFromState)
+      return
+    }
+    const found = getBookById(id)
+    setBook(found)
+  }, [id, bookFromState])
+
+  useEffect(() => {
+    if (book) {
+      setExtraImages(book.extraImageUrls ?? [])
+      setEditForm({
+        title: book.title ?? '',
+        description: book.description ?? '',
+        author: book.author ?? '',
+        publisher: book.publisher ?? '',
+        isbn: book.isbn ?? '',
+        categoryId: MOCK_CATEGORIES.find((c) => c.name === (book.categoryName ?? book.category?.name))?.id ?? '',
+        publishDate: book.publishDate ? book.publishDate.slice(0, 10) : '',
+      })
+    }
+  }, [book])
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreviewUrl(null)
+      return
+    }
+    const url = URL.createObjectURL(imageFile)
+    setImagePreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [imageFile])
+
+  const displayImageUrl = imagePreviewUrl ?? book?.coverImageUrl ?? null
+  const showCoverPlaceholder = !displayImageUrl || imageError
+
+  useEffect(() => {
+    setImageError(false)
+  }, [displayImageUrl])
+
+  const handleBack = () => navigate('/products')
+
+  const handleStartEdit = () => {
+    setEditFormErrors({})
+    setImageFile(null)
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    setImageFile(null)
+    setEditFormErrors({})
+  }
+
+  const handleSaveExtraImages = () => {
+    if (!book) return
+    const saved = book.extraImageUrls ?? []
+    const dirty = saved.length !== extraImages.length || saved.some((v, i) => v !== extraImages[i])
+    if (!dirty) return
+    setBook((b) => (b ? { ...b, extraImageUrls: extraImages } : b))
+    addNotification('success', 'Đã lưu ảnh phụ.')
+  }
+
+  const validateEditForm = (data: EditFormData): Partial<Record<keyof EditFormData, string>> => {
+    const err: Partial<Record<keyof EditFormData, string>> = {}
+    if (!data.title?.trim()) err.title = 'Tiêu đề sách không được để trống'
+    if (!data.description?.trim()) err.description = 'Mô tả sách không được để trống'
+    if (!data.author?.trim()) err.author = 'Tên tác giả không được để trống'
+    if (!data.publisher?.trim()) err.publisher = 'Tên nhà cung cấp không được để trống'
+    if (!data.isbn?.trim()) err.isbn = 'ISBN không được để trống'
+    if (!data.categoryId?.trim()) err.categoryId = 'Loại sản phẩm không được để trống'
+    if (!data.publishDate?.trim()) err.publishDate = 'Ngày phát hành không được để trống'
+    else {
+      const d = new Date(data.publishDate)
+      if (d > new Date()) err.publishDate = 'Ngày phát hành phải bằng hoặc trong quá khứ'
+    }
+    return err
+  }
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const err = validateEditForm(editForm)
+    setEditFormErrors(err)
+    if (Object.keys(err).length > 0) return
+    if (!book) return
+    setSubmitting(true)
+    const categoryName = MOCK_CATEGORIES.find((c) => c.id === editForm.categoryId)?.name ?? editForm.categoryId
+
+    const applyUpdate = (newCoverUrl: string | undefined) => {
+      const updated: Book = {
+        ...book,
+        title: editForm.title.trim(),
+        description: editForm.description.trim(),
+        author: editForm.author.trim(),
+        publisher: editForm.publisher.trim(),
+        isbn: editForm.isbn.trim(),
+        categoryName,
+        publishDate: editForm.publishDate || undefined,
+        bookPrices: book.bookPrices,
+        coverImageUrl: newCoverUrl ?? book.coverImageUrl,
+        extraImageUrls: book.extraImageUrls,
+      }
+      setBook(updated)
+      setIsEditing(false)
+      setImageFile(null)
+      setImagePreviewUrl(null)
+      setSubmitting(false)
+      addNotification('success', `Đã cập nhật sách "${updated.title}". (Chưa gọi API)`)
+    }
+
+    if (imageFile) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        applyUpdate(typeof reader.result === 'string' ? reader.result : undefined)
+      }
+      reader.onerror = () => {
+        applyUpdate(book.coverImageUrl)
+        addNotification('error', 'Không đọc được ảnh; đã lưu các thông tin khác.')
+      }
+      reader.readAsDataURL(imageFile)
+    } else {
+      applyUpdate(book.coverImageUrl)
+    }
+  }
+
+  const handleAddExtraImages = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files?.length) return
+    const toAdd: string[] = []
+    let done = 0
+    const total = files.length
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith('image/')) {
+        addNotification('error', `Bỏ qua "${file.name}" – chỉ chấp nhận file ảnh.`)
+        if (++done === total && toAdd.length > 0) setExtraImages((prev) => [...prev, ...toAdd])
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (typeof reader.result === 'string') toAdd.push(reader.result)
+        if (++done === total && toAdd.length > 0) setExtraImages((prev) => [...prev, ...toAdd])
+      }
+      reader.onerror = () => {
+        if (++done === total && toAdd.length > 0) setExtraImages((prev) => [...prev, ...toAdd])
+      }
+      reader.readAsDataURL(file)
+    })
+    e.target.value = ''
+  }
+
+  const handleRemoveExtraImage = (index: number) => {
+    setExtraImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file && file.type.startsWith('image/')) {
+      setImageFile(file)
+    } else if (file) {
+      addNotification('error', 'Vui lòng chọn file ảnh (JPG, PNG, ...)')
+    }
+    e.target.value = ''
+  }
+
+  const removeNewImage = () => {
+    setImageFile(null)
+  }
+
+  if (!id) {
+    return (
+      <div className={styles.page}>
+        <p className={styles.error}>Thiếu mã sách.</p>
+        <button type="button" className={styles.btnSecondary} onClick={handleBack}>
+          <FiArrowLeft aria-hidden /> Quay lại danh sách
+        </button>
+      </div>
+    )
+  }
+
+  if (!book) {
+    return (
+      <div className={styles.page}>
+        <p className={styles.error}>Không tìm thấy sách với mã "{id}".</p>
+        <button type="button" className={styles.btnSecondary} onClick={handleBack}>
+          <FiArrowLeft aria-hidden /> Quay lại danh sách
+        </button>
+      </div>
+    )
+  }
+
+  const price = getCurrentPrice(book.bookPrices)
+  const savedExtraImages = book.extraImageUrls ?? []
+  const isExtraDirty =
+    savedExtraImages.length !== extraImages.length ||
+    savedExtraImages.some((v, i) => v !== extraImages[i])
+
+  return (
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <button
+          type="button"
+          className={styles.backBtn}
+          onClick={handleBack}
+          aria-label="Quay lại danh sách sách"
+        >
+          <FiArrowLeft aria-hidden /> Quay lại danh sách
+        </button>
+      </header>
+
+      <div className={styles.card}>
+        <div className={styles.hero}>
+          <div className={styles.coverCol}>
+            <div className={styles.coverCard}>
+              {showCoverPlaceholder ? (
+                <div className={styles.coverPlaceholder} aria-hidden>
+                  <FiImage className={styles.coverPlaceholderIcon} />
+                </div>
+              ) : (
+                <img
+                  src={displayImageUrl}
+                  alt={`Bìa: ${book.title}`}
+                  className={styles.coverImg}
+                  onError={() => setImageError(true)}
+                />
+              )}
+              {isEditing && (
+                <div className={styles.imageActionsOverlay}>
+                  <label className={styles.uploadLabel}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className={styles.fileInput}
+                      aria-label="Chọn ảnh bìa mới"
+                    />
+                    <FiImage aria-hidden /> Thêm ảnh
+                  </label>
+                  {imageFile && (
+                    <button type="button" className={styles.removeImageBtn} onClick={removeNewImage}>
+                      Xóa ảnh
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            <section className={styles.extraSection} aria-label="Ảnh phụ">
+              <div className={styles.extraSectionHeader}>
+                <FiImage className={styles.extraSectionIcon} aria-hidden />
+                <h2 className={styles.extraSectionTitle}>Ảnh phụ</h2>
+                {isExtraDirty && (
+                  <button
+                    type="button"
+                    className={styles.extraSectionSave}
+                    onClick={handleSaveExtraImages}
+                  >
+                    Lưu ảnh phụ
+                  </button>
+                )}
+              </div>
+              <div className={styles.extraGrid}>
+                {extraImages.map((url, index) => (
+                  <div key={`extra-${index}`} className={styles.extraThumbWrap}>
+                    <img
+                      src={url}
+                      alt={`Ảnh phụ ${index + 1}`}
+                      className={styles.extraThumbImg}
+                      onError={(e) => {
+                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"%3E%3Crect fill="%23e2e8f0" width="120" height="120"/%3E%3Ctext fill="%2394a3b8" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="12"%3ELỗi%3C/text%3E%3C/svg%3E'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className={styles.extraThumbRemove}
+                      onClick={() => handleRemoveExtraImage(index)}
+                      aria-label={`Xóa ảnh phụ ${index + 1}`}
+                      title="Xóa ảnh"
+                    >
+                      <FiX aria-hidden />
+                    </button>
+                  </div>
+                ))}
+                <label className={styles.extraAdd}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleAddExtraImages}
+                    className={styles.fileInput}
+                    aria-label="Thêm ảnh phụ"
+                  />
+                  <FiPlus className={styles.extraAddIcon} aria-hidden />
+                  <span>Thêm ảnh</span>
+                </label>
+              </div>
+              {!isEditing && extraImages.length === 0 && (
+                <p className={styles.extraEmpty}>Chưa có ảnh phụ.</p>
+              )}
+            </section>
+          </div>
+          <div className={styles.detailCol}>
+            {!isEditing ? (
+              <div className={styles.detailView}>
+                <div className={styles.detailHead}>
+                  <div className={styles.titleRow}>
+                    <h1 className={styles.bookTitle}>{book.title}</h1>
+                    <button
+                      type="button"
+                      className={styles.editBtnTitle}
+                      onClick={handleStartEdit}
+                      aria-label="Chỉnh sửa sách"
+                    >
+                      <FiEdit2 aria-hidden /> Chỉnh sửa
+                    </button>
+                  </div>
+                  <p className={styles.bookAuthor}>
+                    <FiUser className={styles.metaIcon} aria-hidden />
+                    {book.author}
+                  </p>
+                  {price != null && (
+                    <div className={styles.priceBadge}>
+                      <FiDollarSign aria-hidden />
+                      {formatCurrency(price)}
+                    </div>
+                  )}
+                </div>
+                <div className={styles.detailMeta}>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}><FiTag aria-hidden /> Thể loại</span>
+                    <span className={styles.metaValue}>{getCategoryName(book)}</span>
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}><FiHash aria-hidden /> ISBN</span>
+                    <span className={styles.metaValue}>{book.isbn}</span>
+                  </div>
+                  {book.publisher && (
+                    <div className={styles.metaItem}>
+                      <span className={styles.metaLabel}><FiFileText aria-hidden /> Nhà cung cấp</span>
+                      <span className={styles.metaValue}>{book.publisher}</span>
+                    </div>
+                  )}
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}><FiCalendar aria-hidden /> Ngày phát hành</span>
+                    <span className={styles.metaValue}>{formatDate(book.publishDate)}</span>
+                  </div>
+                  <div className={styles.metaItem}>
+                    <span className={styles.metaLabel}><FiCalendar aria-hidden /> Ngày tạo</span>
+                    <span className={styles.metaValue}>{formatDate(book.createdAt)}</span>
+                  </div>
+                  <div className={styles.metaItemDescription}>
+                    <span className={styles.metaLabel}><FiFileText aria-hidden /> Mô tả</span>
+                    <span className={styles.metaValue}>{book.description?.trim() || 'Chưa có mô tả.'}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSaveEdit} className={styles.editForm}>
+                <div className={styles.editFormBody}>
+                  <section className={styles.formSection}>
+                    <h3 className={styles.formSectionTitle}>Thông tin cơ bản</h3>
+                    <div className={styles.formSectionFields}>
+                      <div className={styles.formField}>
+                        <label htmlFor="edit-title" className={styles.formLabel}>
+                          Tiêu đề sách <span className={styles.required}>*</span>
+                        </label>
+                        <input
+                          id="edit-title"
+                          type="text"
+                          className={styles.formInput}
+                          value={editForm.title}
+                          onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
+                          placeholder="Nhập tiêu đề sách"
+                          disabled={submitting}
+                        />
+                        {editFormErrors.title && (
+                          <span className={styles.formError}>{editFormErrors.title}</span>
+                        )}
+                      </div>
+                      <div className={styles.formField}>
+                        <label htmlFor="edit-description" className={styles.formLabel}>
+                          Mô tả <span className={styles.required}>*</span>
+                        </label>
+                        <textarea
+                          id="edit-description"
+                          className={styles.formTextarea}
+                          rows={4}
+                          value={editForm.description}
+                          onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                          placeholder="Mô tả ngắn về nội dung sách"
+                          disabled={submitting}
+                        />
+                        {editFormErrors.description && (
+                          <span className={styles.formError}>{editFormErrors.description}</span>
+                        )}
+                      </div>
+                      <div className={styles.formField}>
+                        <label htmlFor="edit-author" className={styles.formLabel}>
+                          Tác giả <span className={styles.required}>*</span>
+                        </label>
+                        <input
+                          id="edit-author"
+                          type="text"
+                          className={styles.formInput}
+                          value={editForm.author}
+                          onChange={(e) => setEditForm((f) => ({ ...f, author: e.target.value }))}
+                          placeholder="Tên tác giả"
+                          disabled={submitting}
+                        />
+                        {editFormErrors.author && (
+                          <span className={styles.formError}>{editFormErrors.author}</span>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                  <section className={styles.formSection}>
+                    <h3 className={styles.formSectionTitle}>Thông tin xuất bản</h3>
+                    <div className={styles.formSectionGrid}>
+                      <div className={styles.formField}>
+                        <label htmlFor="edit-publisher" className={styles.formLabel}>
+                          Nhà cung cấp <span className={styles.required}>*</span>
+                        </label>
+                        <input
+                          id="edit-publisher"
+                          type="text"
+                          className={styles.formInput}
+                          value={editForm.publisher}
+                          onChange={(e) => setEditForm((f) => ({ ...f, publisher: e.target.value }))}
+                          placeholder="Tên nhà xuất bản / cung cấp"
+                          disabled={submitting}
+                        />
+                        {editFormErrors.publisher && (
+                          <span className={styles.formError}>{editFormErrors.publisher}</span>
+                        )}
+                      </div>
+                      <div className={styles.formField}>
+                        <label htmlFor="edit-isbn" className={styles.formLabel}>
+                          ISBN <span className={styles.required}>*</span>
+                        </label>
+                        <input
+                          id="edit-isbn"
+                          type="text"
+                          className={styles.formInput}
+                          value={editForm.isbn}
+                          onChange={(e) => setEditForm((f) => ({ ...f, isbn: e.target.value }))}
+                          placeholder="978-604-1-00001-1"
+                          disabled={submitting}
+                        />
+                        {editFormErrors.isbn && (
+                          <span className={styles.formError}>{editFormErrors.isbn}</span>
+                        )}
+                      </div>
+                      <div className={styles.formField}>
+                        <label htmlFor="edit-categoryId" className={styles.formLabel}>
+                          Danh mục <span className={styles.required}>*</span>
+                        </label>
+                        <select
+                          id="edit-categoryId"
+                          className={styles.formSelect}
+                          value={editForm.categoryId}
+                          onChange={(e) => setEditForm((f) => ({ ...f, categoryId: e.target.value }))}
+                          disabled={submitting}
+                        >
+                          <option value="">Chọn danh mục</option>
+                          {MOCK_CATEGORIES.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                        {editFormErrors.categoryId && (
+                          <span className={styles.formError}>{editFormErrors.categoryId}</span>
+                        )}
+                      </div>
+                      <div className={styles.formField}>
+                        <label htmlFor="edit-publishDate" className={styles.formLabel}>
+                          Ngày phát hành <span className={styles.required}>*</span>
+                        </label>
+                        <input
+                          id="edit-publishDate"
+                          type="date"
+                          className={styles.formInput}
+                          value={editForm.publishDate}
+                          onChange={(e) => setEditForm((f) => ({ ...f, publishDate: e.target.value }))}
+                          disabled={submitting}
+                        />
+                        {editFormErrors.publishDate && (
+                          <span className={styles.formError}>{editFormErrors.publishDate}</span>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                </div>
+                <div className={styles.editFormFooter}>
+                  <button
+                    type="button"
+                    className={styles.formBtnCancel}
+                    onClick={handleCancelEdit}
+                    disabled={submitting}
+                  >
+                    <FiX aria-hidden /> Hủy
+                  </button>
+                  <button type="submit" className={styles.formBtnSubmit} disabled={submitting}>
+                    {submitting ? 'Đang lưu…' : 'Lưu thay đổi'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default BookDetail
