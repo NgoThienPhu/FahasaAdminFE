@@ -16,10 +16,9 @@ import {
   FiCalendar,
   FiSearch,
 } from 'react-icons/fi'
-import userApi from '../../services/apis/userApi'
-import type { User } from '../../services/apis/userApi'
 import Loading from '../../components/Loading/Loading'
 import { useNotification } from '../../contexts/NotificationContext'
+import userApi, { type UserMember } from '../../services/apis/userApi'
 import styles from './Users.module.css'
 
 const PAGE_SIZE = 10
@@ -66,7 +65,7 @@ const GENDER_LABEL: Record<string, string> = {
 }
 
 // --- Helpers: map API & format ---
-function mapUserFromApi(user: User): UserListItem {
+function mapUserFromApi(user: UserMember): UserListItem {
   return {
     id: user.id,
     username: user.username,
@@ -86,7 +85,7 @@ function parseUserListResponse(res: unknown): {
   totalPages: number
 } {
   const r = res as Record<string, unknown>
-  const rawList = (r.data ?? r.content ?? []) as User[]
+  const rawList = (r.data ?? r.content ?? []) as UserMember[]
   const list = rawList.map(mapUserFromApi)
   const p = (r.pagination ?? r) as Record<string, unknown>
   const totalItems =
@@ -193,7 +192,7 @@ function Users() {
         sortBy: sortField,
         search: searchKeyword || undefined,
       })
-      .then((res) => {
+      .then((res: unknown) => {
         const { list: newList, totalItems: total, totalPages: pages } = parseUserListResponse(res)
         setList(newList)
         setTotalItems(total)
@@ -248,10 +247,10 @@ function Users() {
     const apiCall = isUnlock ? userApi.unlockUser(user.id) : userApi.lockUser(user.id)
     apiCall
       .then(() => fetchList())
-      .then((newList) => {
+      .then((newList: UserListItem[] | undefined) => {
         setLockConfirm(null)
         if (detailUser?.id === user.id && newList?.length) {
-          const updated = newList.find((u) => u.id === user.id)
+          const updated = newList.find((u: UserListItem) => u.id === user.id)
           if (updated) setDetailUser(updated)
         }
       })

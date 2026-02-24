@@ -1,18 +1,9 @@
 import apiClient, { type APIResponse, type APISuccessResponse } from "./config";
+import type { UserAdmin } from "../entities/User";
 
 interface LoginParams {
     username: string;
     password: string;
-}
-
-export interface User {
-  id: string;
-  username: string;
-  fullName: string;
-  email: {
-    email: string;
-    isVerify: boolean;
-  }
 }
 
 interface LoginResponse { accessToken: string; }
@@ -33,7 +24,7 @@ const authApi = {
         return apiClient.post("/auth/refresh", null, { withCredentials: true });
     },
 
-    getProfile(): Promise<APISuccessResponse<User>> {
+    getProfile(): Promise<APISuccessResponse<UserAdmin>> {
         return apiClient.get("/accounts/me");
     },
 

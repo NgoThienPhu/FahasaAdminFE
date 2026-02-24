@@ -4,7 +4,7 @@ import { FiUser, FiLock, FiLogIn } from 'react-icons/fi'
 import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotification } from '../../contexts/NotificationContext'
-import authApi from '../../services/apis/authApi'
+import AuthApi from '../../services/apis/AuthApi'
 import type { APIResponseError } from '../../services/apis/config'
 import styles from './Login.module.css'
 
@@ -39,12 +39,12 @@ function Login() {
     setIsSubmitting(true)
 
     try {
-      const res = await authApi.login({
+      const res = await AuthApi.login({
         username: formData.username.trim(),
         password: formData.password,
       })
       localStorage.setItem('accessToken', res.data.accessToken)
-      const profileRes = await authApi.getProfile()
+      const profileRes = await AuthApi.getProfile()
       login(profileRes.data)
       navigate('/', { replace: true })
     } catch (err) {

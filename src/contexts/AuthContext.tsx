@@ -1,12 +1,13 @@
 import React, { useEffect } from "react";
-import authApi, { type User } from "../services/apis/authApi";
+import authApi from "../services/apis/AuthApi";
+import type { UserAdmin } from "../services/entities/User";
 import { useNotification } from "../contexts/NotificationContext";
 
 interface AuthContextType {
-  user: User | null;
+  user: UserAdmin | null;
   isAuth: boolean;
   isLoading: boolean;
-  login: (user: User) => void;
+  login: (user: UserAdmin) => void;
   logout: () => void;
   reload: () => void;
 }
@@ -15,12 +16,12 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addNotification } = useNotification();
-  const [user, setUser] = React.useState<User | null>(null);
+  const [user, setUser] = React.useState<UserAdmin | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
 
   useEffect(() => {reload()}, []);
 
-  const login = (userData: User) => {
+  const login = (userData: UserAdmin) => {
     setUser(userData);
   };
 

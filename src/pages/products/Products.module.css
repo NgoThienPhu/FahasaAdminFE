@@ -324,10 +324,9 @@
 }
 
 /* Giá: số + đơn vị */
-.thPrice,
-.tdPrice {
-  width: 10%;
-  font-variant-numeric: tabular-nums;
+.thPublisher,
+.tdPublisher {
+  width: 12%;
   white-space: nowrap;
 }
 
@@ -359,9 +358,8 @@
   gap: 0.35rem;
 }
 
-.tdPrice {
-  font-weight: 500;
-  color: #0f3460;
+.tdPublisher {
+  color: #475569;
 }
 
 .btnAction {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FiPackage,
@@ -13,14 +13,15 @@ import {
   FiX,
 } from 'react-icons/fi'
 import { useNotification } from '../../contexts/NotificationContext'
-import type { Book, BookPriceRef } from './booksData'
-import { MOCK_BOOKS, MOCK_CATEGORIES, getCategoryName as getCategoryNameFromData } from './booksData'
+import type { Book } from '../../services/entities/Book'
+import { MOCK_CATEGORIES } from './booksData'
+import bookApi from '../../services/apis/bookApi'
 import styles from './Products.module.css'
 
 const PAGE_SIZE = 10
 
 // --- Types (local) ---
-type SortField = 'title' | 'author' | 'createdAt'
+type SortField = 'title' | 'author' | 'publisher' | 'category' | 'createdAt'
 type SortOrder = 'asc' | 'desc'
 
 /** Form tạo sách (theo CreateBookRequestDTO) */
@@ -46,23 +47,7 @@ const INIT_CREATE_FORM: CreateBookFormData = {
   price: '',
 }
 
-// --- Helpers: giá & định dạng ---
-function getCurrentPrice(prices?: BookPriceRef[]): number | null {
-  if (!prices?.length) return null
-  const now = new Date().toISOString()
-  const active = prices.find((p) => {
-    const from = p.effectiveFrom ?? ''
-    const to = p.effectiveTo ?? '9999'
-    return from <= now && now < to
-  })
-  const price = active ?? prices[prices.length - 1]
-  return price?.salePrice ?? price?.listPrice ?? null
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
-}
-
+// --- Helpers: định dạng ---
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('vi-VN', {
@@ -74,7 +59,9 @@ function formatDateTime(iso: string | null | undefined): string {
   })
 }
 
-const getCategoryName = getCategoryNameFromData
+function getCategoryName(book: Book): string {
+  return book.category?.name ?? '—'
+}
 
 // --- Helpers: lọc & sắp xếp (dùng cho danh sách nội bộ) ---
 function filterBooksByKeyword(books: Book[], keyword: string): Book[] {
@@ -90,8 +77,10 @@ function filterBooksByKeyword(books: Book[], keyword: string): Book[] {
 
 function sortBooks(books: Book[], sortField: SortField, sortOrder: SortOrder): Book[] {
   const getValue = (b: Book): string => {
-    if (sortField === 'title') return b.title
-    if (sortField === 'author') return b.author
+    if (sortField === 'title') return b.title ?? ''
+    if (sortField === 'author') return b.author ?? ''
+    if (sortField === 'publisher') return b.publisher?.trim() ?? ''
+    if (sortField === 'category') return getCategoryName(b)
     return b.createdAt ?? ''
   }
   const sorted = [...books].sort((a, b) => {
@@ -154,13 +143,32 @@ function Products() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [searchInput, setSearchInput] = useState('')
   const [searchKeyword, setSearchKeyword] = useState('')
-  const [localBooks, setLocalBooks] = useState<Book[]>([])
+  const [remoteBooks, setRemoteBooks] = useState<Book[]>([])
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createForm, setCreateForm] = useState<CreateBookFormData>(INIT_CREATE_FORM)
   const [createFormErrors, setCreateFormErrors] = useState<Partial<Record<keyof CreateBookFormData, string>>>({})
   const [createSubmitting, setCreateSubmitting] = useState(false)
 
-  const allBooks = useMemo(() => [...MOCK_BOOKS, ...localBooks], [localBooks])
+  const allBooks = useMemo(() => [...remoteBooks], [remoteBooks])
+
+  useEffect(() => {
+    bookApi
+      .getBooks({
+        page: 0,
+        pageSize: 1000,
+        orderBy: 'DESC',
+        sortBy: 'createdAt',
+      })
+      .then((res) => {
+        const data = (res.data ?? []) as Book[]
+        setRemoteBooks(data)
+      })
+      .catch((error: { message?: string; error?: string }) => {
+        const msg = error?.message ?? error?.error ?? 'Không thể tải danh sách sách.'
+        addNotification('error', msg)
+        setRemoteBooks([])
+      })
+  }, [addNotification])
 
   // Danh sách sau khi lọc + sắp xếp + phân trang
   const { list, totalItems, totalPages, displayPage, from, to } = useMemo(() => {
@@ -221,22 +229,33 @@ function Products() {
     if (Object.keys(err).length > 0) return
     setCreateSubmitting(true)
     const priceNum = Number(createForm.price.replace(/\s/g, ''))
-    const categoryName = MOCK_CATEGORIES.find((c) => c.id === createForm.categoryId)?.name ?? createForm.categoryId
-    const newBook: Book = {
-      id: `local-${Date.now()}`,
-      title: createForm.title.trim(),
-      author: createForm.author.trim(),
-      isbn: createForm.isbn.trim(),
-      categoryName,
-      createdAt: new Date().toISOString(),
-      bookPrices: [{ id: `p-${Date.now()}`, listPrice: priceNum, salePrice: priceNum }],
-    }
-    setLocalBooks((prev) => [newBook, ...prev])
-    setCreateForm(INIT_CREATE_FORM)
-    setCreateFormErrors({})
-    setShowCreateModal(false)
-    setCreateSubmitting(false)
-    addNotification('success', `Đã thêm sách "${newBook.title}". (Chưa gọi API)`)
+
+    bookApi
+      .createBook({
+        title: createForm.title.trim(),
+        description: createForm.description.trim(),
+        author: createForm.author.trim(),
+        publisher: createForm.publisher.trim(),
+        isbn: createForm.isbn.trim(),
+        categoryId: createForm.categoryId,
+        publishDate: createForm.publishDate,
+        price: priceNum,
+      })
+      .then((res) => {
+        const created = res.data as Book
+        setRemoteBooks((prev) => [created, ...prev])
+        setCreateForm(INIT_CREATE_FORM)
+        setCreateFormErrors({})
+        setShowCreateModal(false)
+        addNotification('success', `Đã thêm sách "${created.title}".`)
+      })
+      .catch((error: { message?: string; error?: string }) => {
+        const msg = error?.message ?? error?.error ?? 'Thêm sách thất bại.'
+        addNotification('error', msg)
+      })
+      .finally(() => {
+        setCreateSubmitting(false)
+      })
   }
 
   const openCreateModal = () => {
@@ -297,10 +316,31 @@ function Products() {
                     currentOrder={sortOrder}
                     onSort={handleSort}
                   />
-                  <th className={styles.thAuthor}>Tác giả</th>
+                  <ThSort
+                    field="author"
+                    label="Tác giả"
+                    className={styles.thAuthor}
+                    currentField={sortField}
+                    currentOrder={sortOrder}
+                    onSort={handleSort}
+                  />
                   <th className={styles.thIsbn}>ISBN</th>
-                  <th className={styles.thCategory}>Danh mục</th>
-                  <th className={styles.thPrice}>Giá hiện tại</th>
+                  <ThSort
+                    field="category"
+                    label="Danh mục"
+                    className={styles.thCategory}
+                    currentField={sortField}
+                    currentOrder={sortOrder}
+                    onSort={handleSort}
+                  />
+                  <ThSort
+                    field="publisher"
+                    label="Nhà cung cấp"
+                    className={styles.thPublisher}
+                    currentField={sortField}
+                    currentOrder={sortOrder}
+                    onSort={handleSort}
+                  />
                   <ThSort
                     field="createdAt"
                     label="Ngày tạo"
@@ -315,7 +355,6 @@ function Products() {
               <tbody>
                 {list.map((book, index) => {
                   const stt = (displayPage - 1) * PAGE_SIZE + index + 1
-                  const price = getCurrentPrice(book.bookPrices)
                   return (
                     <tr key={book.id}>
                       <td className={styles.tdStt}>{stt}</td>
@@ -327,8 +366,8 @@ function Products() {
                       <td className={styles.tdCategory} title={getCategoryName(book)}>
                         {getCategoryName(book)}
                       </td>
-                      <td className={styles.tdPrice}>
-                        {price != null ? formatCurrency(price) : '—'}
+                      <td className={styles.tdPublisher} title={book.publisher ?? undefined}>
+                        {book.publisher?.trim() || '—'}
                       </td>
                       <td className={styles.tdCreatedAt} title={book.createdAt ? formatDateTime(book.createdAt) : undefined}>
                         {formatDateTime(book.createdAt)}

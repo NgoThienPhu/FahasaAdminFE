@@ -1,22 +1,5 @@
 import apiClient, { type APIPaginationSuccessResponse, type APIResponse } from './config'
-
-interface User {
-    id: string;
-    username: string;
-    fullName: string;
-    email: {
-      email: string;
-      isVerify: boolean;
-    }
-    phoneNumber: {
-        phoneNumber: string;
-        isVerify: boolean;
-    }
-    gender: "MALE" | "FEMALE" | "OTHER";
-    dateOfBirth: string | null;
-    isActived: boolean;
-    createdAt: string;
-  }
+import type { UserMember } from '../entities/User'
 
 interface GetUsersParams {
     page: number;
@@ -28,7 +11,7 @@ interface GetUsersParams {
 
 const userApi = {
 
-  getUsers(params: GetUsersParams): Promise<APIPaginationSuccessResponse<User[]>> {
+  getUsers(params: GetUsersParams): Promise<APIPaginationSuccessResponse<UserMember[]>> {
     const search = params.search?.trim()
     const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
     return apiClient.get(
@@ -50,4 +33,4 @@ const userApi = {
 }
 
 export default userApi
-export type { User, GetUsersParams }
+export type { UserMember, GetUsersParams }

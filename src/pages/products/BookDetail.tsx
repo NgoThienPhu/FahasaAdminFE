@@ -3,7 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { FiArrowLeft, FiEdit2, FiX, FiUser, FiHash, FiTag, FiCalendar, FiDollarSign, FiFileText, FiImage, FiPlus } from 'react-icons/fi'
 import { useNotification } from '../../contexts/NotificationContext'
 import type { Book } from './booksData'
-import { getBookById, MOCK_CATEGORIES, getCategoryName } from './booksData'
+import { MOCK_CATEGORIES, getCategoryName } from './booksData'
+import bookApi from '../../services/apis/bookApi'
 import styles from './BookDetail.module.css'
 
 type EditFormData = {
@@ -44,9 +45,8 @@ function BookDetail() {
   const { addNotification } = useNotification()
 
   const bookFromState = (location.state as { book?: Book })?.book
-  const initialBook = bookFromState ?? (id ? getBookById(id) : undefined)
 
-  const [book, setBook] = useState<Book | undefined>(initialBook)
+  const [book, setBook] = useState<Book | undefined>(bookFromState)
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState<EditFormData>({
     title: '',
@@ -70,9 +70,18 @@ function BookDetail() {
       setBook(bookFromState)
       return
     }
-    const found = getBookById(id)
-    setBook(found)
-  }, [id, bookFromState])
+
+    bookApi
+      .findBookById(id)
+      .then((res) => {
+        setBook(res.data as Book)
+      })
+      .catch((error: { message?: string; error?: string }) => {
+        const msg = error?.message ?? error?.error ?? `Không tìm thấy sách với mã "${id}".`
+        addNotification('error', msg)
+        setBook(undefined)
+      })
+  }, [id, bookFromState, addNotification])
 
   useEffect(() => {
     if (book) {
