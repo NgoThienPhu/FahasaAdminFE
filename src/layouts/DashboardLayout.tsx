@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { FiHome, FiUsers, FiPackage, FiShoppingCart, FiLogOut, FiBook } from 'react-icons/fi'
+import { FiHome, FiUsers, FiPackage, FiShoppingCart, FiLogOut, FiBook, FiTag } from 'react-icons/fi'
 import { useAuth } from '../contexts/AuthContext'
 import styles from './DashboardLayout.module.css'
 
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/', end: true, icon: FiHome, label: 'Trang chủ' },
   { to: '/users', end: false, icon: FiUsers, label: 'Người dùng' },
   { to: '/products', end: false, icon: FiPackage, label: 'Sách' },
+  { to: '/categories', end: false, icon: FiTag, label: 'Danh mục sách' },
   { to: '/orders', end: false, icon: FiShoppingCart, label: 'Đơn hàng' },
 ]
 

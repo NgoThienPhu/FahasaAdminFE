@@ -1,7 +1,11 @@
 import type { Book } from '../entities/Book';
 import apiClient, { type APIPaginationSuccessResponse, type APISuccessResponse } from './config'
 
-interface CreateBookParams {
+interface CreateBookParams extends UpdateBookParams {
+    price: number;
+}
+
+interface UpdateBookParams {
     title: string;
     description: string;
     author: string;
@@ -9,7 +13,6 @@ interface CreateBookParams {
     isbn: string;
     categoryId: string;
     publishDate: string;
-    price: number;
 }
 
 interface GetBooksParams {
@@ -36,6 +39,10 @@ const bookApi = {
 
     findBookById(id: string): Promise<APISuccessResponse<Book>> {
         return apiClient.get(`/books/${id}`)
+    },
+
+    updateBook(id: string, params: UpdateBookParams): Promise<APISuccessResponse<Book>> {
+        return apiClient.put(`/books/${id}`, params)
     },
 
 }

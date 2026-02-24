@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { FiArrowLeft, FiEdit2, FiX, FiUser, FiHash, FiTag, FiCalendar, FiDollarSign, FiFileText, FiImage, FiPlus } from 'react-icons/fi'
+import {
+  FiArrowLeft,
+  FiEdit2,
+  FiX,
+  FiUser,
+  FiHash,
+  FiTag,
+  FiCalendar,
+  FiDollarSign,
+  FiFileText,
+  FiImage,
+  FiPlus,
+} from 'react-icons/fi'
 import { useNotification } from '../../contexts/NotificationContext'
-import type { Book } from './booksData'
-import { MOCK_CATEGORIES, getCategoryName } from './booksData'
-import bookApi from '../../services/apis/bookApi'
+import type { Book as EntityBook } from '../../services/entities/Book'
+import type { Category } from '../../services/entities/Category'
+import bookApi from '../../services/apis/BookApi'
+import categoryApi from '../../services/apis/categoryApi'
 import styles from './BookDetail.module.css'
 
 type EditFormData = {
@@ -17,16 +30,15 @@ type EditFormData = {
   publishDate: string
 }
 
-function getCurrentPrice(prices?: Book['bookPrices']): number | null {
-  if (!prices?.length) return null
-  const now = new Date().toISOString()
-  const active = prices.find((p) => {
-    const from = p.effectiveFrom ?? ''
-    const to = p.effectiveTo ?? '9999'
-    return from <= now && now < to
-  })
-  const price = active ?? prices[prices.length - 1]
-  return price?.salePrice ?? price?.listPrice ?? null
+type Book = EntityBook & {
+  coverImageUrl?: string
+  extraImageUrls?: string[]
+  categoryName?: string
+}
+
+function getCurrentPrice(book?: Book | null): number | null {
+  if (!book?.price) return null
+  return book.price.price
 }
 
 function formatCurrency(value: number): string {
@@ -36,6 +48,10 @@ function formatCurrency(value: number): string {
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('vi-VN')
+}
+
+function getCategoryName(book: Book): string {
+  return book.category?.name ?? '—'
 }
 
 function BookDetail() {
@@ -63,18 +79,23 @@ function BookDetail() {
   const [imageError, setImageError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [extraImages, setExtraImages] = useState<string[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
 
   useEffect(() => {
     if (!id) return
     if (bookFromState) {
+      // Hiển thị nhanh dữ liệu truyền từ danh sách (nếu có)
       setBook(bookFromState)
-      return
     }
 
     bookApi
       .findBookById(id)
-      .then((res) => {
-        setBook(res.data as Book)
+      .then((res: { data?: unknown }) => {
+        const raw = res.data as Record<string, unknown>
+        const anyBook = raw as any
+        const createdAt = anyBook.createdAt ?? anyBook.created_at ?? ''
+        const mapped = { ...anyBook, createdAt } as Book
+        setBook(mapped)
       })
       .catch((error: { message?: string; error?: string }) => {
         const msg = error?.message ?? error?.error ?? `Không tìm thấy sách với mã "${id}".`
@@ -84,19 +105,21 @@ function BookDetail() {
   }, [id, bookFromState, addNotification])
 
   useEffect(() => {
-    if (book) {
-      setExtraImages(book.extraImageUrls ?? [])
-      setEditForm({
-        title: book.title ?? '',
-        description: book.description ?? '',
-        author: book.author ?? '',
-        publisher: book.publisher ?? '',
-        isbn: book.isbn ?? '',
-        categoryId: MOCK_CATEGORIES.find((c) => c.name === (book.categoryName ?? book.category?.name))?.id ?? '',
-        publishDate: book.publishDate ? book.publishDate.slice(0, 10) : '',
-      })
-    }
-  }, [book])
+    if (!book) return
+    setExtraImages(book.extraImageUrls ?? [])
+    const categoryName = book.category?.name ?? book.categoryName ?? ''
+    const matchedCategoryId =
+      categories.find((c) => c.name === categoryName)?.id ?? ''
+    setEditForm({
+      title: book.title ?? '',
+      description: book.description ?? '',
+      author: book.author ?? '',
+      publisher: book.publisher ?? '',
+      isbn: book.isbn ?? '',
+      categoryId: matchedCategoryId,
+      publishDate: book.publishDate ? book.publishDate.slice(0, 10) : '',
+    })
+  }, [book, categories])
 
   useEffect(() => {
     if (!imageFile) {
@@ -114,6 +137,25 @@ function BookDetail() {
   useEffect(() => {
     setImageError(false)
   }, [displayImageUrl])
+
+  useEffect(() => {
+    categoryApi
+      .getCategories({
+        page: 0,
+        pageSize: 1000,
+        orderBy: 'ASC',
+        sortBy: 'name',
+      })
+      .then((res: { data?: unknown }) => {
+        const data = (res.data ?? []) as Category[]
+        setCategories(data)
+      })
+      .catch((error: { message?: string; error?: string }) => {
+        const msg = error?.message ?? error?.error ?? 'Không thể tải danh mục sách.'
+        addNotification('error', msg)
+        setCategories([])
+      })
+  }, [addNotification])
 
   const handleBack = () => navigate('/products')
 
@@ -161,28 +203,40 @@ function BookDetail() {
     if (Object.keys(err).length > 0) return
     if (!book) return
     setSubmitting(true)
-    const categoryName = MOCK_CATEGORIES.find((c) => c.id === editForm.categoryId)?.name ?? editForm.categoryId
-
     const applyUpdate = (newCoverUrl: string | undefined) => {
-      const updated: Book = {
-        ...book,
-        title: editForm.title.trim(),
-        description: editForm.description.trim(),
-        author: editForm.author.trim(),
-        publisher: editForm.publisher.trim(),
-        isbn: editForm.isbn.trim(),
-        categoryName,
-        publishDate: editForm.publishDate || undefined,
-        bookPrices: book.bookPrices,
-        coverImageUrl: newCoverUrl ?? book.coverImageUrl,
-        extraImageUrls: book.extraImageUrls,
-      }
-      setBook(updated)
-      setIsEditing(false)
-      setImageFile(null)
-      setImagePreviewUrl(null)
-      setSubmitting(false)
-      addNotification('success', `Đã cập nhật sách "${updated.title}". (Chưa gọi API)`)
+      bookApi
+        .updateBook(book.id, {
+          title: editForm.title.trim(),
+          description: editForm.description.trim(),
+          author: editForm.author.trim(),
+          publisher: editForm.publisher.trim(),
+          isbn: editForm.isbn.trim(),
+          categoryId: editForm.categoryId,
+          publishDate: editForm.publishDate,
+        })
+        .then((res: { data?: unknown }) => {
+          const raw = res.data as Record<string, unknown>
+          const anyBook = raw as any
+          const createdAt = anyBook.createdAt ?? anyBook.created_at ?? ''
+          const mapped: Book = {
+            ...anyBook,
+            createdAt,
+            coverImageUrl: newCoverUrl ?? anyBook.coverImageUrl ?? book.coverImageUrl,
+            extraImageUrls: extraImages,
+          }
+          setBook(mapped)
+          setIsEditing(false)
+          setImageFile(null)
+          setImagePreviewUrl(null)
+          addNotification('success', `Đã cập nhật sách "${mapped.title}".`)
+        })
+        .catch((error: { message?: string; error?: string }) => {
+          const msg = error?.message ?? error?.error ?? 'Cập nhật sách thất bại.'
+          addNotification('error', msg)
+        })
+        .finally(() => {
+          setSubmitting(false)
+        })
     }
 
     if (imageFile) {
@@ -265,7 +319,7 @@ function BookDetail() {
     )
   }
 
-  const price = getCurrentPrice(book.bookPrices)
+  const price = getCurrentPrice(book)
   const savedExtraImages = book.extraImageUrls ?? []
   const isExtraDirty =
     savedExtraImages.length !== extraImages.length ||
@@ -537,7 +591,7 @@ function BookDetail() {
                           disabled={submitting}
                         >
                           <option value="">Chọn danh mục</option>
-                          {MOCK_CATEGORIES.map((c) => (
+                          {categories.map((c) => (
                             <option key={c.id} value={c.id}>
                               {c.name}
                             </option>

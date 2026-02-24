@@ -6,6 +6,7 @@ import Users from './pages/users'
 import Products from './pages/products'
 import BookDetail from './pages/products/BookDetail'
 import Orders from './pages/orders'
+import Categories from './pages/categories'
 import './App.css'
 import { ProtectedRouter } from './components/protected_router/ProtectedRouter'
 import Notification from './components/notification/Notification'
@@ -27,6 +28,7 @@ function App() {
         }>
           <Route index element={<Dashboard />} />
           <Route path="users" element={<Users />} />
+          <Route path="categories" element={<Categories />} />
           <Route path="products" element={<Outlet />}>
             <Route index element={<Products />} />
             <Route path=":id" element={<BookDetail />} />

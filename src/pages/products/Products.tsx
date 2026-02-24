@@ -14,8 +14,9 @@ import {
 } from 'react-icons/fi'
 import { useNotification } from '../../contexts/NotificationContext'
 import type { Book } from '../../services/entities/Book'
-import { MOCK_CATEGORIES } from './booksData'
-import bookApi from '../../services/apis/bookApi'
+import type { Category } from '../../services/entities/Category'
+import bookApi from '../../services/apis/BookApi'
+import categoryApi from '../../services/apis/categoryApi'
 import styles from './Products.module.css'
 
 const PAGE_SIZE = 10
@@ -144,12 +145,13 @@ function Products() {
   const [searchInput, setSearchInput] = useState('')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [remoteBooks, setRemoteBooks] = useState<Book[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createForm, setCreateForm] = useState<CreateBookFormData>(INIT_CREATE_FORM)
-  const [createFormErrors, setCreateFormErrors] = useState<Partial<Record<keyof CreateBookFormData, string>>>({})
+  const [createFormErrors, setCreateFormErrors] = useState<
+    Partial<Record<keyof CreateBookFormData, string>>
+  >({})
   const [createSubmitting, setCreateSubmitting] = useState(false)
-
-  const allBooks = useMemo(() => [...remoteBooks], [remoteBooks])
 
   useEffect(() => {
     bookApi
@@ -159,9 +161,14 @@ function Products() {
         orderBy: 'DESC',
         sortBy: 'createdAt',
       })
-      .then((res) => {
-        const data = (res.data ?? []) as Book[]
-        setRemoteBooks(data)
+      .then((res: { data?: unknown }) => {
+        const raw = (res.data ?? []) as Array<Record<string, unknown>>
+        const mapped = raw.map((b) => {
+          const anyBook = b as any
+          const createdAt = anyBook.createdAt ?? anyBook.created_at ?? ''
+          return { ...anyBook, createdAt } as Book
+        })
+        setRemoteBooks(mapped)
       })
       .catch((error: { message?: string; error?: string }) => {
         const msg = error?.message ?? error?.error ?? 'Không thể tải danh sách sách.'
@@ -170,9 +177,28 @@ function Products() {
       })
   }, [addNotification])
 
-  // Danh sách sau khi lọc + sắp xếp + phân trang
+  useEffect(() => {
+    categoryApi
+      .getCategories({
+        page: 0,
+        pageSize: 1000,
+        orderBy: 'ASC',
+        sortBy: 'name',
+      })
+      .then((res: { data?: unknown }) => {
+        const data = (res.data ?? []) as Category[]
+        setCategories(data)
+      })
+      .catch((error: { message?: string; error?: string }) => {
+        const msg = error?.message ?? error?.error ?? 'Không thể tải danh mục sách.'
+        addNotification('error', msg)
+        setCategories([])
+      })
+  }, [addNotification])
+
+  // Danh sách sau khi lọc + sắp xếp + phân trang (trên dữ liệu remoteBooks)
   const { list, totalItems, totalPages, displayPage, from, to } = useMemo(() => {
-    const filtered = filterBooksByKeyword(allBooks, searchKeyword)
+    const filtered = filterBooksByKeyword(remoteBooks, searchKeyword)
     const sorted = sortBooks(filtered, sortField, sortOrder)
 
     const totalItems = sorted.length
@@ -185,7 +211,7 @@ function Products() {
     const to = Math.min(start + PAGE_SIZE, totalItems)
 
     return { list, totalItems, totalPages, displayPage, from, to }
-  }, [currentPage, sortField, sortOrder, searchKeyword, allBooks])
+  }, [currentPage, sortField, sortOrder, searchKeyword, remoteBooks])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -262,6 +288,10 @@ function Products() {
     setCreateForm(INIT_CREATE_FORM)
     setCreateFormErrors({})
     setShowCreateModal(true)
+  }
+
+  const clearCreateFormError = (field: keyof CreateBookFormData) => {
+    setCreateFormErrors((prev) => ({ ...prev, [field]: undefined }))
   }
 
   return (
@@ -475,7 +505,10 @@ function Products() {
                     type="text"
                     className={styles.input}
                     value={createForm.title}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, title: e.target.value }))}
+                    onChange={(e) => {
+                    setCreateForm((f) => ({ ...f, title: e.target.value }))
+                    clearCreateFormError('title')
+                  }}
                     placeholder="Nhập tiêu đề"
                     disabled={createSubmitting}
                   />
@@ -492,7 +525,10 @@ function Products() {
                     className={styles.textarea}
                     rows={3}
                     value={createForm.description}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
+                    onChange={(e) => {
+                    setCreateForm((f) => ({ ...f, description: e.target.value }))
+                    clearCreateFormError('description')
+                  }}
                     placeholder="Nhập mô tả"
                     disabled={createSubmitting}
                   />
@@ -509,7 +545,10 @@ function Products() {
                     type="text"
                     className={styles.input}
                     value={createForm.author}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, author: e.target.value }))}
+                    onChange={(e) => {
+                    setCreateForm((f) => ({ ...f, author: e.target.value }))
+                    clearCreateFormError('author')
+                  }}
                     placeholder="Nhập tên tác giả"
                     disabled={createSubmitting}
                   />
@@ -526,7 +565,10 @@ function Products() {
                     type="text"
                     className={styles.input}
                     value={createForm.publisher}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, publisher: e.target.value }))}
+                    onChange={(e) => {
+                    setCreateForm((f) => ({ ...f, publisher: e.target.value }))
+                    clearCreateFormError('publisher')
+                  }}
                     placeholder="Nhập tên nhà cung cấp"
                     disabled={createSubmitting}
                   />
@@ -543,7 +585,10 @@ function Products() {
                     type="text"
                     className={styles.input}
                     value={createForm.isbn}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, isbn: e.target.value }))}
+                    onChange={(e) => {
+                    setCreateForm((f) => ({ ...f, isbn: e.target.value }))
+                    clearCreateFormError('isbn')
+                  }}
                     placeholder="VD: 978-604-1-00001-1"
                     disabled={createSubmitting}
                   />
@@ -559,11 +604,14 @@ function Products() {
                     id="create-categoryId"
                     className={styles.select}
                     value={createForm.categoryId}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, categoryId: e.target.value }))}
+                    onChange={(e) => {
+                    setCreateForm((f) => ({ ...f, categoryId: e.target.value }))
+                    clearCreateFormError('categoryId')
+                  }}
                     disabled={createSubmitting}
                   >
                     <option value="">Chọn danh mục</option>
-                    {MOCK_CATEGORIES.map((c) => (
+                    {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
@@ -582,7 +630,10 @@ function Products() {
                     type="date"
                     className={styles.input}
                     value={createForm.publishDate}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, publishDate: e.target.value }))}
+                    onChange={(e) => {
+                    setCreateForm((f) => ({ ...f, publishDate: e.target.value }))
+                    clearCreateFormError('publishDate')
+                  }}
                     disabled={createSubmitting}
                   />
                   {createFormErrors.publishDate && (
@@ -600,7 +651,10 @@ function Products() {
                     step={1000}
                     className={styles.input}
                     value={createForm.price}
-                    onChange={(e) => setCreateForm((f) => ({ ...f, price: e.target.value }))}
+                    onChange={(e) => {
+                    setCreateForm((f) => ({ ...f, price: e.target.value }))
+                    clearCreateFormError('price')
+                  }}
                     placeholder="Tối thiểu 1.000"
                     disabled={createSubmitting}
                   />
