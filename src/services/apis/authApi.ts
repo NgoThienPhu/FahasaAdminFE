@@ -1,4 +1,4 @@
-import apiClient, { type APIResponse, type APISuccessResponse } from "./config";
+import apiClient, { type APIResponse, type APISuccessResponse } from "./Config";
 import type { UserAdmin } from "../entities/User";
 
 interface LoginParams {

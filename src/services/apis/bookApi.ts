@@ -1,5 +1,5 @@
 import type { Book } from '../entities/Book';
-import apiClient, { type APIPaginationSuccessResponse, type APISuccessResponse } from './config'
+import apiClient, { type APIPaginationSuccessResponse, type APISuccessResponse } from './Config'
 
 interface CreateBookParams extends UpdateBookParams {
     price: number;

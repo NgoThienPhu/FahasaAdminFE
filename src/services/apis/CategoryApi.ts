@@ -1,4 +1,4 @@
-import apiClient, { type APIPaginationSuccessResponse, type APISuccessResponse } from './config'
+import apiClient, { type APIPaginationSuccessResponse, type APISuccessResponse } from './Config'
 import type { Category } from '../entities/Category'
 
 interface GetCategoriesParams {

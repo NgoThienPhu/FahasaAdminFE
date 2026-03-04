@@ -13,11 +13,11 @@ import {
   FiImage,
   FiPlus,
 } from 'react-icons/fi'
-import { useNotification } from '../../contexts/NotificationContext'
-import type { Book as EntityBook } from '../../services/entities/Book'
-import type { Category } from '../../services/entities/Category'
-import bookApi from '../../services/apis/BookApi'
-import categoryApi from '../../services/apis/categoryApi'
+import { useNotification } from '../../../contexts/NotificationContext'
+import type { Book as EntityBook } from '../../../services/entities/Book'
+import type { Category } from '../../../services/entities/Category'
+import bookApi from '../../../services/apis/BookApi'
+import categoryApi from '../../../services/apis/CategoryApi'
 import styles from './BookDetail.module.css'
 
 type EditFormData = {
@@ -84,7 +84,6 @@ function BookDetail() {
   useEffect(() => {
     if (!id) return
     if (bookFromState) {
-      // Hiển thị nhanh dữ liệu truyền từ danh sách (nếu có)
       setBook(bookFromState)
     }
 

@@ -18,12 +18,12 @@ import {
 } from 'react-icons/fi'
 import Loading from '../../components/Loading/Loading'
 import { useNotification } from '../../contexts/NotificationContext'
-import userApi, { type UserMember } from '../../services/apis/userApi'
+import userApi from '../../services/apis/UserApi'
+import type { UserMember } from '../../services/entities/User'
 import styles from './Users.module.css'
 
 const PAGE_SIZE = 10
 
-// --- Types ---
 type SortField = 'username' | 'fullName' | 'email' | 'phoneNumber' | 'isActived' | 'createdAt'
 type SortOrder = 'asc' | 'desc'
 
@@ -39,7 +39,6 @@ export interface UserListItem {
   createdAt: string
 }
 
-// --- Constants ---
 const SORTABLE_COLUMNS: { field: SortField; label: string }[] = [
   { field: 'username', label: 'Tên đăng nhập' },
   { field: 'fullName', label: 'Họ tên' },
@@ -64,7 +63,6 @@ const GENDER_LABEL: Record<string, string> = {
   OTHER: 'Khác',
 }
 
-// --- Helpers: map API & format ---
 function mapUserFromApi(user: UserMember): UserListItem {
   return {
     id: user.id,
@@ -127,7 +125,6 @@ function getInitials(fullName: string): string {
     .toUpperCase() || '?'
 }
 
-// --- Component: cột header có nút sắp xếp ---
 function ThSort({
   field,
   label,
@@ -275,7 +272,7 @@ function Users() {
         setResetConfirmUser(null)
         addNotification(
           'success',
-          'Đã gửi yêu cầu đặt lại mật khẩu. Người dùng sẽ nhận mật khẩu mới qua email.'
+          'Đã đặt lại mật khẩu thành công. Mật khẩu mới đã được gửi tới email của người dùng.'
         )
       })
       .catch((err: { message?: string; error?: string }) => {
@@ -457,11 +454,11 @@ function Users() {
         >
           <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
             <h2 id="reset-confirm-title" className={styles.confirmModalTitle}>
-              Xác nhận đặt lại mật khẩu
+              Xác nhận yêu cầu đổi mật khẩu
             </h2>
             <p className={styles.confirmModalMessage}>
               Bạn có chắc muốn đặt lại mật khẩu cho tài khoản <strong>{resetConfirmUser.username}</strong>?
-              Người dùng sẽ nhận mật khẩu mới qua email <strong>{resetConfirmUser.email.email}</strong>.
+              Người dùng sẽ nhận yêu cầu đổi mật khẩu mới qua email <strong>{resetConfirmUser.email.email}</strong>.
             </p>
             <div className={styles.confirmModalActions}>
               <button

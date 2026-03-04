@@ -68,26 +68,19 @@ apiClient.interceptors.response.use(
 
       try {
         const refreshResponse = await authApi.refreshToken();
-        const newToken =
-          (refreshResponse as { data?: { accessToken?: string }; accessToken?: string }).data?.accessToken ??
-          (refreshResponse as { accessToken?: string }).accessToken;
+        const newAccessToken = refreshResponse.data.accessToken;
 
-        if (newToken) {
-          localStorage.setItem('accessToken', newToken);
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        if (newAccessToken) {
+          localStorage.setItem('accessToken', newAccessToken);
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return apiClient(originalRequest);
         }
       } catch (e) {
         console.error("Làm mới token thất bại:", e);
+        localStorage.removeItem("accessToken");
+        window.location.href = '/login';
+        return Promise.reject({ message: "Phiên đăng nhập hết hạn." });
       }
-
-      localStorage.removeItem('accessToken');
-      window.location.href = '/login';
-      return Promise.reject(error.response?.data ?? { message: "Phiên đăng nhập hết hạn." });
-    }
-
-    if (response.status !== 401) {
-      console.error("Lỗi API:", response.data);
     }
 
     if (response.status === 403) {

@@ -16,12 +16,11 @@ import { useNotification } from '../../contexts/NotificationContext'
 import type { Book } from '../../services/entities/Book'
 import type { Category } from '../../services/entities/Category'
 import bookApi from '../../services/apis/BookApi'
-import categoryApi from '../../services/apis/categoryApi'
+import categoryApi from '../../services/apis/CategoryApi'
 import styles from './Products.module.css'
 
 const PAGE_SIZE = 10
 
-// --- Types (local) ---
 type SortField = 'title' | 'author' | 'publisher' | 'category' | 'createdAt'
 type SortOrder = 'asc' | 'desc'
 
@@ -48,7 +47,6 @@ const INIT_CREATE_FORM: CreateBookFormData = {
   price: '',
 }
 
-// --- Helpers: định dạng ---
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('vi-VN', {
@@ -64,7 +62,6 @@ function getCategoryName(book: Book): string {
   return book.category?.name ?? '—'
 }
 
-// --- Helpers: lọc & sắp xếp (dùng cho danh sách nội bộ) ---
 function filterBooksByKeyword(books: Book[], keyword: string): Book[] {
   const kw = keyword.trim().toLowerCase()
   if (!kw) return [...books]
@@ -94,7 +91,6 @@ function sortBooks(books: Book[], sortField: SortField, sortOrder: SortOrder): B
   return sorted
 }
 
-// --- Component: cột header có nút sắp xếp ---
 function ThSort({
   field,
   label,
@@ -196,7 +192,6 @@ function Products() {
       })
   }, [addNotification])
 
-  // Danh sách sau khi lọc + sắp xếp + phân trang (trên dữ liệu remoteBooks)
   const { list, totalItems, totalPages, displayPage, from, to } = useMemo(() => {
     const filtered = filterBooksByKeyword(remoteBooks, searchKeyword)
     const sorted = sortBooks(filtered, sortField, sortOrder)

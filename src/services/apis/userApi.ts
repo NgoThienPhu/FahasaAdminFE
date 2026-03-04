@@ -1,4 +1,4 @@
-import apiClient, { type APIPaginationSuccessResponse, type APIResponse } from './config'
+import apiClient, { type APIPaginationSuccessResponse, type APIResponse } from './Config'
 import type { UserMember } from '../entities/User'
 
 interface GetUsersParams {
@@ -20,7 +20,7 @@ const userApi = {
   },
 
   resetPassword(id: string): Promise<APIResponse> {
-    return apiClient.post(`/accounts/${id}/reset-password`);
+    return apiClient.post(`/accounts/${id}/resset-password`);
   },
 
   lockUser(id: string): Promise<APIResponse> {

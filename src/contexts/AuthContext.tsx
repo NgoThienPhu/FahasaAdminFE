@@ -19,7 +19,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = React.useState<UserAdmin | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
 
-  useEffect(() => {reload()}, []);
+  useEffect(() => {
+    if (localStorage.getItem("accessToken")) reload();
+  }, []);
 
   const login = (userData: UserAdmin) => {
     setUser(userData);
