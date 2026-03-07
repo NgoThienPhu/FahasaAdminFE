@@ -1,5 +1,5 @@
 import axios from "axios";
-import authApi from "./AuthApi";
+import authApi from "./authApi";
 
 const VITE_API_BE_SERVER_URL = import.meta.env.VITE_API_BE_SERVER_URL;
 

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import authApi from "../services/apis/AuthApi";
+import authApi from "../services/apis/authApi";
 import type { UserAdmin } from "../services/entities/User";
 import { useNotification } from "../contexts/NotificationContext";
 

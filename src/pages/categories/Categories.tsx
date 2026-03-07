@@ -14,7 +14,7 @@ import {
 import { useNotification } from '../../contexts/NotificationContext'
 import Loading from '../../components/Loading/Loading'
 import type { Category } from '../../services/entities/Category'
-import categoryApi from '../../services/apis/categoryApi'
+import categoryApi from '../../services/apis/CategoryApi'
 import styles from '../products/Products.module.css'
 
 const PAGE_SIZE = 10

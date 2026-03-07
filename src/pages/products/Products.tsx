@@ -262,7 +262,7 @@ function Products() {
         publishDate: createForm.publishDate,
         price: priceNum,
       })
-      .then((res) => {
+      .then((res: { data?: unknown }) => {
         const created = res.data as Book
         setRemoteBooks((prev) => [created, ...prev])
         setCreateForm(INIT_CREATE_FORM)

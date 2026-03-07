@@ -18,6 +18,7 @@ import type { Book as EntityBook } from '../../../services/entities/Book'
 import type { Category } from '../../../services/entities/Category'
 import bookApi from '../../../services/apis/BookApi'
 import categoryApi from '../../../services/apis/CategoryApi'
+import { TipTapEditor } from '../../../components/TipTapEditor'
 import styles from './BookDetail.module.css'
 
 type EditFormData = {
@@ -628,7 +629,17 @@ function BookDetail() {
                   </div>
                   <div className={styles.metaItemDescription}>
                     <span className={styles.metaLabel}><FiFileText aria-hidden /> Mô tả</span>
-                    <span className={styles.metaValue}>{book.description?.trim() || 'Chưa có mô tả.'}</span>
+                    <span className={styles.metaValue}>
+                      {book.description?.trim() ? (
+                        /<[a-z][\s\S]*>/i.test(book.description) ? (
+                          <span className={styles.descriptionHtml} dangerouslySetInnerHTML={{ __html: book.description }} />
+                        ) : (
+                          book.description
+                        )
+                      ) : (
+                        'Chưa có mô tả.'
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -659,13 +670,11 @@ function BookDetail() {
                         <label htmlFor="edit-description" className={styles.formLabel}>
                           Mô tả <span className={styles.required}>*</span>
                         </label>
-                        <textarea
+                        <TipTapEditor
                           id="edit-description"
-                          className={styles.formTextarea}
-                          rows={4}
                           value={editForm.description}
-                          onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
-                          placeholder="Mô tả ngắn về nội dung sách"
+                          onChange={(html) => setEditForm((f) => ({ ...f, description: html }))}
+                          placeholder="Mô tả ngắn về nội dung sách (có thể dùng in đậm, in nghiêng, danh sách, link)"
                           disabled={submitting}
                         />
                         {editFormErrors.description && (
