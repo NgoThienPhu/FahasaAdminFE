@@ -54,6 +54,8 @@ function getCategoryName(book: Book): string {
   return book.category?.name ?? '—'
 }
 
+const MAX_EXTRA_IMAGES = 5
+
 function BookDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -256,22 +258,51 @@ function BookDetail() {
   const handleAddExtraImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files?.length) return
-    const toAdd: string[] = []
-    let done = 0
-    const total = files.length
-    Array.from(files).forEach((file) => {
+    const currentCount = extraImages.length
+    const remaining = MAX_EXTRA_IMAGES - currentCount
+    if (remaining <= 0) {
+      addNotification('error', `Mỗi sách tối đa ${MAX_EXTRA_IMAGES} ảnh phụ. Đã đủ số lượng.`)
+      e.target.value = ''
+      return
+    }
+    const fileList = Array.from(files)
+    const validFiles: File[] = []
+    fileList.forEach((file) => {
       if (!file.type.startsWith('image/')) {
         addNotification('error', `Bỏ qua "${file.name}" – chỉ chấp nhận file ảnh.`)
-        if (++done === total && toAdd.length > 0) setExtraImages((prev) => [...prev, ...toAdd])
         return
       }
+      validFiles.push(file)
+    })
+    const toProcess = validFiles.slice(0, remaining)
+    if (validFiles.length > remaining) {
+      addNotification('info', `Chỉ thêm được tối đa ${remaining} ảnh nữa. Đã bỏ qua ${validFiles.length - remaining} ảnh.`)
+    }
+    if (toProcess.length === 0) {
+      e.target.value = ''
+      return
+    }
+    const toAdd: string[] = []
+    let done = 0
+    const total = toProcess.length
+    toProcess.forEach((file) => {
       const reader = new FileReader()
       reader.onload = () => {
         if (typeof reader.result === 'string') toAdd.push(reader.result)
-        if (++done === total && toAdd.length > 0) setExtraImages((prev) => [...prev, ...toAdd])
+        if (++done === total) {
+          setExtraImages((prev) => {
+            const space = MAX_EXTRA_IMAGES - prev.length
+            return [...prev, ...toAdd.slice(0, space)]
+          })
+        }
       }
       reader.onerror = () => {
-        if (++done === total && toAdd.length > 0) setExtraImages((prev) => [...prev, ...toAdd])
+        if (++done === total) {
+          setExtraImages((prev) => {
+            const space = MAX_EXTRA_IMAGES - prev.length
+            return [...prev, ...toAdd.slice(0, space)]
+          })
+        }
       }
       reader.readAsDataURL(file)
     })
@@ -280,6 +311,14 @@ function BookDetail() {
 
   const handleRemoveExtraImage = (index: number) => {
     setExtraImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleRemoveSavedExtraImage = (url: string) => {
+    setExtraImages((prev) => {
+      const idx = prev.indexOf(url)
+      if (idx === -1) return prev
+      return prev.filter((_, i) => i !== idx)
+    })
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -374,56 +413,167 @@ function BookDetail() {
               )}
             </div>
             <section className={styles.extraSection} aria-label="Ảnh phụ">
-              <div className={styles.extraSectionHeader}>
-                <FiImage className={styles.extraSectionIcon} aria-hidden />
-                <h2 className={styles.extraSectionTitle}>Ảnh phụ</h2>
-                {isExtraDirty && (
-                  <button
-                    type="button"
-                    className={styles.extraSectionSave}
-                    onClick={handleSaveExtraImages}
-                  >
-                    Lưu ảnh phụ
-                  </button>
+              <div
+                className={
+                  isEditing && isExtraDirty
+                    ? `${styles.extraSectionHeader} ${styles.extraSectionHeaderTwoRows}`
+                    : styles.extraSectionHeader
+                }
+              >
+                <div className={styles.extraSectionFirstRow}>
+                  <div className={styles.extraSectionTitleRow}>
+                    <FiImage className={styles.extraSectionIcon} aria-hidden />
+                    <h2 className={styles.extraSectionTitle}>Ảnh phụ</h2>
+                  </div>
+                  {isEditing && !isExtraDirty && (
+                    <div className={styles.extraSectionActions}>
+                      <label
+                        className={
+                          extraImages.length >= MAX_EXTRA_IMAGES
+                            ? `${styles.extraAddHeader} ${styles.extraAddHeaderDisabled}`
+                            : styles.extraAddHeader
+                        }
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleAddExtraImages}
+                          className={styles.fileInput}
+                          aria-label="Thêm ảnh phụ"
+                          disabled={extraImages.length >= MAX_EXTRA_IMAGES}
+                        />
+                        <FiPlus className={styles.extraAddHeaderIcon} aria-hidden />
+                        <span>Thêm ảnh</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+                {isEditing && isExtraDirty && (
+                  <div className={styles.extraSectionActionsRow}>
+                    <div className={styles.extraSectionActions}>
+                      <label
+                        className={
+                          extraImages.length >= MAX_EXTRA_IMAGES
+                            ? `${styles.extraAddHeader} ${styles.extraAddHeaderDisabled}`
+                            : styles.extraAddHeader
+                        }
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleAddExtraImages}
+                          className={styles.fileInput}
+                          aria-label="Thêm ảnh phụ"
+                          disabled={extraImages.length >= MAX_EXTRA_IMAGES}
+                        />
+                        <FiPlus className={styles.extraAddHeaderIcon} aria-hidden />
+                        <span>Thêm ảnh</span>
+                      </label>
+                      <button
+                        type="button"
+                        className={styles.extraSectionSave}
+                        onClick={handleSaveExtraImages}
+                      >
+                        Lưu ảnh phụ
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {isEditing && (
+                  <p className={styles.extraSectionHint}>
+                    {extraImages.length >= MAX_EXTRA_IMAGES
+                      ? `Đã đủ ${MAX_EXTRA_IMAGES} ảnh phụ.`
+                      : `Có thể thêm tối đa ${MAX_EXTRA_IMAGES - extraImages.length} ảnh nữa (tối đa ${MAX_EXTRA_IMAGES} ảnh phụ).`}
+                  </p>
                 )}
               </div>
-              <div className={styles.extraGrid}>
-                {extraImages.map((url, index) => (
-                  <div key={`extra-${index}`} className={styles.extraThumbWrap}>
-                    <img
-                      src={url}
-                      alt={`Ảnh phụ ${index + 1}`}
-                      className={styles.extraThumbImg}
-                      onError={(e) => {
-                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"%3E%3Crect fill="%23e2e8f0" width="120" height="120"/%3E%3Ctext fill="%2394a3b8" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="12"%3ELỗi%3C/text%3E%3C/svg%3E'
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className={styles.extraThumbRemove}
-                      onClick={() => handleRemoveExtraImage(index)}
-                      aria-label={`Xóa ảnh phụ ${index + 1}`}
-                      title="Xóa ảnh"
-                    >
-                      <FiX aria-hidden />
-                    </button>
-                  </div>
-                ))}
-                <label className={styles.extraAdd}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleAddExtraImages}
-                    className={styles.fileInput}
-                    aria-label="Thêm ảnh phụ"
-                  />
-                  <FiPlus className={styles.extraAddIcon} aria-hidden />
-                  <span>Thêm ảnh</span>
-                </label>
-              </div>
-              {!isEditing && extraImages.length === 0 && (
-                <p className={styles.extraEmpty}>Chưa có ảnh phụ.</p>
+              {isEditing ? (
+                <>
+                  {extraImages.length > 0 ? (
+                    <div className={styles.extraPart}>
+                      <h3 className={styles.extraPartTitle}>Ảnh đang chờ cập nhật</h3>
+                      <div className={styles.extraGrid}>
+                        {extraImages.map((url, index) => (
+                          <div key={`extra-${index}`} className={styles.extraThumbWrap}>
+                            <img
+                              src={url}
+                              alt={`Ảnh phụ ${index + 1}`}
+                              className={styles.extraThumbImg}
+                              onError={(e) => {
+                                e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"%3E%3Crect fill="%23e2e8f0" width="120" height="120"/%3E%3Ctext fill="%2394a3b8" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="12"%3ELỗi%3C/text%3E%3C/svg%3E'
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className={styles.extraThumbRemove}
+                              onClick={() => handleRemoveExtraImage(index)}
+                              aria-label={`Xóa ảnh phụ ${index + 1}`}
+                              title="Xóa ảnh"
+                            >
+                              <FiX aria-hidden />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={styles.extraPart}>
+                      <h3 className={styles.extraPartTitle}>Danh sách ảnh</h3>
+                      {savedExtraImages.length > 0 ? (
+                        <div className={styles.extraGrid}>
+                          {savedExtraImages.map((url, index) => (
+                            <div key={`saved-${index}`} className={styles.extraThumbWrap}>
+                              <img
+                                src={url}
+                                alt={`Ảnh đã lưu ${index + 1}`}
+                                className={styles.extraThumbImg}
+                                onError={(e) => {
+                                  e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"%3E%3Crect fill="%23e2e8f0" width="120" height="120"/%3E%3Ctext fill="%2394a3b8" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="12"%3ELỗi%3C/text%3E%3C/svg%3E'
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className={styles.extraThumbRemove}
+                                onClick={() => handleRemoveSavedExtraImage(url)}
+                                aria-label={`Xóa ảnh phụ ${index + 1}`}
+                                title="Xóa ảnh"
+                              >
+                                <FiX aria-hidden />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={styles.extraEmpty}>Chưa có ảnh nào trên hệ thống.</p>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {(book?.extraImageUrls?.length ?? 0) > 0 ? (
+                    <div className={styles.extraGridView}>
+                      {(book?.extraImageUrls ?? []).map((url, index) => (
+                        <div key={`extra-view-${index}`} className={styles.extraThumbWrapView}>
+                          <img
+                            src={url}
+                            alt={`Ảnh phụ ${index + 1}`}
+                            className={styles.extraThumbImg}
+                            onError={(e) => {
+                              e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"%3E%3Crect fill="%23e2e8f0" width="120" height="120"/%3E%3Ctext fill="%2394a3b8" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="12"%3ELỗi%3C/text%3E%3C/svg%3E'
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={styles.extraEmpty}>
+                      Chưa có ảnh phụ. Nhấn <strong>Chỉnh sửa</strong> để thêm ảnh.
+                    </p>
+                  )}
+                </>
               )}
             </section>
           </div>
