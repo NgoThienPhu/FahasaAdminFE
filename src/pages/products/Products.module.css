@@ -143,20 +143,23 @@
   background: #1e5a8e;
 }
 
-.tableLoading {
-  flex: 1;
-  min-height: 12rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .tableWrap {
   flex: 1;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+}
+
+.tableLoading {
+  flex: 1;
+  min-height: 12rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .table {
@@ -475,6 +478,10 @@
   flex-direction: column;
 }
 
+.modalCreate {
+  max-width: 900px;
+}
+
 .modalHeader {
   display: flex;
   align-items: center;
@@ -526,6 +533,99 @@
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.field {
+  margin-bottom: 0;
+}
+
+.formBody .field {
+  margin-bottom: 0;
+}
+
+/* ---- Section layout (Thêm sách) ---- */
+.formSection {
+  background: #fafbfc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+}
+
+.formSectionBasic {
+  padding: 1.5rem 1.5rem;
+}
+
+.formSectionTitleBasic,
+.formSectionTitleCard {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  letter-spacing: -0.01em;
+}
+
+.formSectionTitleIcon {
+  width: 18px;
+  height: 18px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.formSectionBasicRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.25rem;
+}
+
+@media (max-width: 520px) {
+  .formSectionBasicRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formSectionPublish {
+  padding: 1.5rem 1.5rem;
+}
+
+.formSectionPublishGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.25rem;
+}
+
+@media (max-width: 520px) {
+  .formSectionPublishGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formSectionDescription {
+  padding: 1.5rem 1.5rem;
+}
+
+.labelWithIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.labelIcon {
+  width: 14px;
+  height: 14px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.descriptionEditorWrap > div > div:last-child {
+  min-height: 18rem;
 }
 
 .field {

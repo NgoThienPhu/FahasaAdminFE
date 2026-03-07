@@ -1,6 +1,8 @@
 /* ========== Page ========== */
 .page {
   margin: 0;
+  margin-top: 0;
+  margin-bottom: 0;
   width: 100%;
   flex: 1;
   min-height: 0;
@@ -273,7 +275,7 @@
   border-color: #fecaca;
 }
 
-/* ---- Detail column (view) ---- */
+/* ---- Detail column: nội dung bên phải cuộn, cột trái (ảnh) cố định ---- */
 .detailCol {
   flex: 1;
   min-width: 0;
@@ -283,12 +285,63 @@
   overflow: hidden;
 }
 
+.detailViewWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .detailView {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  min-height: 0;
-  overflow-y: auto;
+}
+
+.detailViewFooter {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 1rem 0 0;
+  margin-top: auto;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.editBtnFooter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  background: #0f3460;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  box-shadow: 0 2px 6px rgba(15, 52, 96, 0.25);
+}
+
+.editBtnFooter:hover {
+  background: #1e4a7a;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(15, 52, 96, 0.3);
+}
+
+.editBtnFooter:active {
+  transform: translateY(0);
+}
+
+.editBtnFooter svg {
+  width: 17px;
+  height: 17px;
 }
 
 .detailHead {
@@ -451,14 +504,14 @@
 
 /* ---- Thẻ mô tả ---- */
 .detailDescriptionCard {
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-height: auto;
   display: flex;
   flex-direction: column;
   background: #fafbfc;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .detailDescriptionTitle {
@@ -474,9 +527,9 @@
 }
 
 .detailDescriptionBody {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow-y: visible;
   padding: 1rem 1.25rem 1.25rem;
   font-size: 0.9rem;
   line-height: 1.65;
@@ -836,8 +889,9 @@
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
-  padding-top: 1rem;
-  margin-top: 0.5rem;
+  align-items: center;
+  padding: 1rem 0 0;
+  margin-top: auto;
   border-top: 1px solid #e2e8f0;
   background: #fff;
 }

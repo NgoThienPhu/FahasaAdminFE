@@ -166,12 +166,16 @@ function BookDetail() {
   const handleStartEdit = () => {
     setEditFormErrors({})
     setImageFile(null)
+    setImagePreviewUrl(null)
+    setExtraImages(book?.extraImageUrls ?? [])
     setIsEditing(true)
   }
 
   const handleCancelEdit = () => {
     setIsEditing(false)
     setImageFile(null)
+    setImagePreviewUrl(null)
+    setExtraImages(book?.extraImageUrls ?? [])
     setEditFormErrors({})
   }
 
@@ -365,6 +369,19 @@ function BookDetail() {
   const isExtraDirty =
     savedExtraImages.length !== extraImages.length ||
     savedExtraImages.some((v, i) => v !== extraImages[i])
+
+  const initialCategoryId =
+    categories.find((c) => c.name === getCategoryName(book))?.id ?? ''
+  const isEditDirty =
+    editForm.title !== (book.title ?? '').trim() ||
+    (editForm.description ?? '').trim() !== (book.description ?? '').trim() ||
+    editForm.author !== (book.author ?? '').trim() ||
+    editForm.publisher !== (book.publisher ?? '').trim() ||
+    editForm.isbn !== (book.isbn ?? '').trim() ||
+    editForm.categoryId !== initialCategoryId ||
+    editForm.publishDate !== (book.publishDate ? book.publishDate.slice(0, 10) : '') ||
+    imageFile !== null ||
+    isExtraDirty
 
   return (
     <div className={styles.page}>
@@ -582,32 +599,23 @@ function BookDetail() {
           </div>
           <div className={styles.detailCol}>
             {!isEditing ? (
-              <div className={styles.detailView}>
-                <header className={styles.detailHead}>
-                  <div className={styles.titleRow}>
+              <div className={styles.detailViewWrap}>
+                <div className={styles.detailView}>
+                  <header className={styles.detailHead}>
                     <h1 className={styles.bookTitle}>{book.title}</h1>
-                    <button
-                      type="button"
-                      className={styles.editBtnTitle}
-                      onClick={handleStartEdit}
-                      aria-label="Chỉnh sửa sách"
-                    >
-                      <FiEdit2 aria-hidden /> Chỉnh sửa
-                    </button>
-                  </div>
-                  <p className={styles.bookAuthor}>
-                    <FiUser className={styles.metaIcon} aria-hidden />
-                    {book.author}
-                  </p>
-                  {price != null && (
-                    <div className={styles.priceBadge}>
-                      <FiDollarSign aria-hidden />
-                      {formatCurrency(price)}
-                    </div>
-                  )}
-                </header>
+                    <p className={styles.bookAuthor}>
+                      <FiUser className={styles.metaIcon} aria-hidden />
+                      {book.author}
+                    </p>
+                    {price != null && (
+                      <div className={styles.priceBadge}>
+                        <FiDollarSign aria-hidden />
+                        {formatCurrency(price)}
+                      </div>
+                    )}
+                  </header>
 
-                <section className={styles.detailInfoCard} aria-label="Thông tin sách">
+                  <section className={styles.detailInfoCard} aria-label="Thông tin sách">
                   <div className={styles.detailMeta}>
                     <div className={styles.metaItem}>
                       <span className={styles.metaLabel}><FiTag aria-hidden /> Thể loại</span>
@@ -648,6 +656,17 @@ function BookDetail() {
                     )}
                   </div>
                 </section>
+                </div>
+                <div className={styles.detailViewFooter}>
+                  <button
+                    type="button"
+                    className={styles.editBtnFooter}
+                    onClick={handleStartEdit}
+                    aria-label="Chỉnh sửa sách"
+                  >
+                    <FiEdit2 aria-hidden /> Chỉnh sửa
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSaveEdit} className={styles.editForm}>
@@ -812,7 +831,11 @@ function BookDetail() {
                   >
                     <FiX aria-hidden /> Hủy
                   </button>
-                  <button type="submit" className={styles.formBtnSubmit} disabled={submitting}>
+                  <button
+                    type="submit"
+                    className={styles.formBtnSubmit}
+                    disabled={submitting || !isEditDirty}
+                  >
                     {submitting ? 'Đang lưu…' : 'Lưu thay đổi'}
                   </button>
                 </div>

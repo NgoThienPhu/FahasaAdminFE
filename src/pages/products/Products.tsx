@@ -11,12 +11,20 @@ import {
   FiEye,
   FiTrash2,
   FiX,
+  FiBook,
+  FiUser,
+  FiFileText,
+  FiHash,
+  FiTag,
+  FiCalendar,
 } from 'react-icons/fi'
 import { useNotification } from '../../contexts/NotificationContext'
 import type { Book } from '../../services/entities/Book'
 import type { Category } from '../../services/entities/Category'
-import bookApi from '../../services/apis/BookApi'
+import bookApi from '../../services/apis/bookApi'
 import categoryApi from '../../services/apis/CategoryApi'
+import { TipTapEditor } from '../../components/TipTapEditor'
+import Loading from '../../components/Loading/Loading'
 import styles from './Products.module.css'
 
 const PAGE_SIZE = 10
@@ -141,6 +149,7 @@ function Products() {
   const [searchInput, setSearchInput] = useState('')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [remoteBooks, setRemoteBooks] = useState<Book[]>([])
+  const [booksLoading, setBooksLoading] = useState(true)
   const [categories, setCategories] = useState<Category[]>([])
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [createForm, setCreateForm] = useState<CreateBookFormData>(INIT_CREATE_FORM)
@@ -150,6 +159,7 @@ function Products() {
   const [createSubmitting, setCreateSubmitting] = useState(false)
 
   useEffect(() => {
+    setBooksLoading(true)
     bookApi
       .getBooks({
         page: 0,
@@ -170,6 +180,9 @@ function Products() {
         const msg = error?.message ?? error?.error ?? 'Không thể tải danh sách sách.'
         addNotification('error', msg)
         setRemoteBooks([])
+      })
+      .finally(() => {
+        setBooksLoading(false)
       })
   }, [addNotification])
 
@@ -227,7 +240,8 @@ function Products() {
   const validateCreateForm = (data: CreateBookFormData): Partial<Record<keyof CreateBookFormData, string>> => {
     const err: Partial<Record<keyof CreateBookFormData, string>> = {}
     if (!data.title?.trim()) err.title = 'Tiêu đề sách không được để trống'
-    if (!data.description?.trim()) err.description = 'Mô tả sách không được để trống'
+    const descText = data.description?.replace(/<[^>]+>/g, '').trim() ?? ''
+    if (!descText) err.description = 'Mô tả sách không được để trống'
     if (!data.author?.trim()) err.author = 'Tên tác giả không được để trống'
     if (!data.publisher?.trim()) err.publisher = 'Tên nhà cung cấp không được để trống'
     if (!data.isbn?.trim()) err.isbn = 'ISBN không được để trống'
@@ -329,6 +343,11 @@ function Products() {
         </div>
 
         <div className={styles.tableWrap}>
+            {booksLoading ? (
+              <div className={styles.tableLoading}>
+                <Loading notify="Đang tải danh sách sách..." />
+              </div>
+            ) : (
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -424,6 +443,7 @@ function Products() {
                 })}
               </tbody>
             </table>
+            )}
         </div>
 
         <div className={styles.pagination}>
@@ -475,7 +495,7 @@ function Products() {
           aria-modal="true"
           aria-labelledby="create-book-title"
         >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={`${styles.modal} ${styles.modalCreate}`} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h2 id="create-book-title" className={styles.modalTitle}>
                 Thêm sách mới
@@ -491,172 +511,196 @@ function Products() {
             </div>
             <form onSubmit={handleCreateSubmit} className={styles.form}>
               <div className={styles.formBody}>
-                <div className={styles.field}>
-                  <label htmlFor="create-title" className={styles.label}>
-                    Tiêu đề sách <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    id="create-title"
-                    type="text"
-                    className={styles.input}
-                    value={createForm.title}
-                    onChange={(e) => {
-                    setCreateForm((f) => ({ ...f, title: e.target.value }))
-                    clearCreateFormError('title')
-                  }}
-                    placeholder="Nhập tiêu đề"
-                    disabled={createSubmitting}
-                  />
-                  {createFormErrors.title && (
-                    <span className={styles.fieldError}>{createFormErrors.title}</span>
-                  )}
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="create-description" className={styles.label}>
-                    Mô tả <span className={styles.required}>*</span>
-                  </label>
-                  <textarea
-                    id="create-description"
-                    className={styles.textarea}
-                    rows={3}
-                    value={createForm.description}
-                    onChange={(e) => {
-                    setCreateForm((f) => ({ ...f, description: e.target.value }))
-                    clearCreateFormError('description')
-                  }}
-                    placeholder="Nhập mô tả"
-                    disabled={createSubmitting}
-                  />
-                  {createFormErrors.description && (
-                    <span className={styles.fieldError}>{createFormErrors.description}</span>
-                  )}
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="create-author" className={styles.label}>
-                    Tác giả <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    id="create-author"
-                    type="text"
-                    className={styles.input}
-                    value={createForm.author}
-                    onChange={(e) => {
-                    setCreateForm((f) => ({ ...f, author: e.target.value }))
-                    clearCreateFormError('author')
-                  }}
-                    placeholder="Nhập tên tác giả"
-                    disabled={createSubmitting}
-                  />
-                  {createFormErrors.author && (
-                    <span className={styles.fieldError}>{createFormErrors.author}</span>
-                  )}
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="create-publisher" className={styles.label}>
-                    Nhà cung cấp <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    id="create-publisher"
-                    type="text"
-                    className={styles.input}
-                    value={createForm.publisher}
-                    onChange={(e) => {
-                    setCreateForm((f) => ({ ...f, publisher: e.target.value }))
-                    clearCreateFormError('publisher')
-                  }}
-                    placeholder="Nhập tên nhà cung cấp"
-                    disabled={createSubmitting}
-                  />
-                  {createFormErrors.publisher && (
-                    <span className={styles.fieldError}>{createFormErrors.publisher}</span>
-                  )}
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="create-isbn" className={styles.label}>
-                    ISBN <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    id="create-isbn"
-                    type="text"
-                    className={styles.input}
-                    value={createForm.isbn}
-                    onChange={(e) => {
-                    setCreateForm((f) => ({ ...f, isbn: e.target.value }))
-                    clearCreateFormError('isbn')
-                  }}
-                    placeholder="VD: 978-604-1-00001-1"
-                    disabled={createSubmitting}
-                  />
-                  {createFormErrors.isbn && (
-                    <span className={styles.fieldError}>{createFormErrors.isbn}</span>
-                  )}
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="create-categoryId" className={styles.label}>
-                    Loại sản phẩm <span className={styles.required}>*</span>
-                  </label>
-                  <select
-                    id="create-categoryId"
-                    className={styles.select}
-                    value={createForm.categoryId}
-                    onChange={(e) => {
-                    setCreateForm((f) => ({ ...f, categoryId: e.target.value }))
-                    clearCreateFormError('categoryId')
-                  }}
-                    disabled={createSubmitting}
-                  >
-                    <option value="">Chọn danh mục</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  {createFormErrors.categoryId && (
-                    <span className={styles.fieldError}>{createFormErrors.categoryId}</span>
-                  )}
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="create-publishDate" className={styles.label}>
-                    Ngày phát hành <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    id="create-publishDate"
-                    type="date"
-                    className={styles.input}
-                    value={createForm.publishDate}
-                    onChange={(e) => {
-                    setCreateForm((f) => ({ ...f, publishDate: e.target.value }))
-                    clearCreateFormError('publishDate')
-                  }}
-                    disabled={createSubmitting}
-                  />
-                  {createFormErrors.publishDate && (
-                    <span className={styles.fieldError}>{createFormErrors.publishDate}</span>
-                  )}
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="create-price" className={styles.label}>
-                    Giá (VND) <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    id="create-price"
-                    type="number"
-                    min={1000}
-                    step={1000}
-                    className={styles.input}
-                    value={createForm.price}
-                    onChange={(e) => {
-                    setCreateForm((f) => ({ ...f, price: e.target.value }))
-                    clearCreateFormError('price')
-                  }}
-                    placeholder="Tối thiểu 1.000"
-                    disabled={createSubmitting}
-                  />
-                  {createFormErrors.price && (
-                    <span className={styles.fieldError}>{createFormErrors.price}</span>
-                  )}
-                </div>
+                <section className={`${styles.formSection} ${styles.formSectionBasic}`}>
+                  <h3 className={styles.formSectionTitleBasic}>
+                    <FiBook className={styles.formSectionTitleIcon} aria-hidden />
+                    Thông tin cơ bản
+                  </h3>
+                  <div className={styles.formSectionBasicRow}>
+                    <div className={styles.field}>
+                      <label htmlFor="create-title" className={styles.label}>
+                        Tiêu đề sách <span className={styles.required}>*</span>
+                      </label>
+                      <input
+                        id="create-title"
+                        type="text"
+                        className={styles.input}
+                        value={createForm.title}
+                        onChange={(e) => {
+                          setCreateForm((f) => ({ ...f, title: e.target.value }))
+                          clearCreateFormError('title')
+                        }}
+                        placeholder="Nhập tiêu đề sách"
+                        disabled={createSubmitting}
+                      />
+                      {createFormErrors.title && (
+                        <span className={styles.fieldError}>{createFormErrors.title}</span>
+                      )}
+                    </div>
+                    <div className={styles.field}>
+                      <label htmlFor="create-author" className={`${styles.label} ${styles.labelWithIcon}`}>
+                        <FiUser className={styles.labelIcon} aria-hidden />
+                        Tác giả <span className={styles.required}>*</span>
+                      </label>
+                      <input
+                        id="create-author"
+                        type="text"
+                        className={styles.input}
+                        value={createForm.author}
+                        onChange={(e) => {
+                          setCreateForm((f) => ({ ...f, author: e.target.value }))
+                          clearCreateFormError('author')
+                        }}
+                        placeholder="Tên tác giả"
+                        disabled={createSubmitting}
+                      />
+                      {createFormErrors.author && (
+                        <span className={styles.fieldError}>{createFormErrors.author}</span>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                <section className={`${styles.formSection} ${styles.formSectionPublish}`}>
+                  <h3 className={styles.formSectionTitleCard}>
+                    <FiPackage className={styles.formSectionTitleIcon} aria-hidden />
+                    Thông tin xuất bản
+                  </h3>
+                  <div className={styles.formSectionPublishGrid}>
+                    <div className={styles.field}>
+                      <label htmlFor="create-publisher" className={`${styles.label} ${styles.labelWithIcon}`}>
+                        <FiFileText className={styles.labelIcon} aria-hidden />
+                        Nhà cung cấp <span className={styles.required}>*</span>
+                      </label>
+                      <input
+                        id="create-publisher"
+                        type="text"
+                        className={styles.input}
+                        value={createForm.publisher}
+                        onChange={(e) => {
+                          setCreateForm((f) => ({ ...f, publisher: e.target.value }))
+                          clearCreateFormError('publisher')
+                        }}
+                        placeholder="Nhà xuất bản / cung cấp"
+                        disabled={createSubmitting}
+                      />
+                      {createFormErrors.publisher && (
+                        <span className={styles.fieldError}>{createFormErrors.publisher}</span>
+                      )}
+                    </div>
+                    <div className={styles.field}>
+                      <label htmlFor="create-isbn" className={`${styles.label} ${styles.labelWithIcon}`}>
+                        <FiHash className={styles.labelIcon} aria-hidden />
+                        ISBN <span className={styles.required}>*</span>
+                      </label>
+                      <input
+                        id="create-isbn"
+                        type="text"
+                        className={styles.input}
+                        value={createForm.isbn}
+                        onChange={(e) => {
+                          setCreateForm((f) => ({ ...f, isbn: e.target.value }))
+                          clearCreateFormError('isbn')
+                        }}
+                        placeholder="978-604-1-00001-1"
+                        disabled={createSubmitting}
+                      />
+                      {createFormErrors.isbn && (
+                        <span className={styles.fieldError}>{createFormErrors.isbn}</span>
+                      )}
+                    </div>
+                    <div className={styles.field}>
+                      <label htmlFor="create-categoryId" className={`${styles.label} ${styles.labelWithIcon}`}>
+                        <FiTag className={styles.labelIcon} aria-hidden />
+                        Danh mục <span className={styles.required}>*</span>
+                      </label>
+                      <select
+                        id="create-categoryId"
+                        className={styles.select}
+                        value={createForm.categoryId}
+                        onChange={(e) => {
+                          setCreateForm((f) => ({ ...f, categoryId: e.target.value }))
+                          clearCreateFormError('categoryId')
+                        }}
+                        disabled={createSubmitting}
+                      >
+                        <option value="">Chọn danh mục</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      {createFormErrors.categoryId && (
+                        <span className={styles.fieldError}>{createFormErrors.categoryId}</span>
+                      )}
+                    </div>
+                    <div className={styles.field}>
+                      <label htmlFor="create-publishDate" className={`${styles.label} ${styles.labelWithIcon}`}>
+                        <FiCalendar className={styles.labelIcon} aria-hidden />
+                        Ngày phát hành <span className={styles.required}>*</span>
+                      </label>
+                      <input
+                        id="create-publishDate"
+                        type="date"
+                        className={styles.input}
+                        value={createForm.publishDate}
+                        onChange={(e) => {
+                          setCreateForm((f) => ({ ...f, publishDate: e.target.value }))
+                          clearCreateFormError('publishDate')
+                        }}
+                        disabled={createSubmitting}
+                      />
+                      {createFormErrors.publishDate && (
+                        <span className={styles.fieldError}>{createFormErrors.publishDate}</span>
+                      )}
+                    </div>
+                    <div className={styles.field}>
+                      <label htmlFor="create-price" className={styles.label}>
+                        Giá (VND) <span className={styles.required}>*</span>
+                      </label>
+                      <input
+                        id="create-price"
+                        type="number"
+                        min={1000}
+                        step={1000}
+                        className={styles.input}
+                        value={createForm.price}
+                        onChange={(e) => {
+                          setCreateForm((f) => ({ ...f, price: e.target.value }))
+                          clearCreateFormError('price')
+                        }}
+                        placeholder="Tối thiểu 1.000"
+                        disabled={createSubmitting}
+                      />
+                      {createFormErrors.price && (
+                        <span className={styles.fieldError}>{createFormErrors.price}</span>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                <section className={`${styles.formSection} ${styles.formSectionDescription}`}>
+                  <h3 className={styles.formSectionTitleCard}>
+                    <FiFileText className={styles.formSectionTitleIcon} aria-hidden />
+                    Mô tả sách <span className={styles.required}>*</span>
+                  </h3>
+                  <div className={`${styles.field} ${styles.descriptionEditorWrap}`}>
+                    <TipTapEditor
+                      id="create-description"
+                      value={createForm.description}
+                      onChange={(html) => {
+                        setCreateForm((f) => ({ ...f, description: html }))
+                        clearCreateFormError('description')
+                      }}
+                      placeholder="Mô tả nội dung sách (in đậm, in nghiêng, danh sách, link...)"
+                      disabled={createSubmitting}
+                    />
+                    {createFormErrors.description && (
+                      <span className={styles.fieldError}>{createFormErrors.description}</span>
+                    )}
+                  </div>
+                </section>
               </div>
               <div className={styles.modalFooter}>
                 <button
