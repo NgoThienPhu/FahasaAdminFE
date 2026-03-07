@@ -77,26 +77,15 @@ function mapUserFromApi(user: UserMember): UserListItem {
   }
 }
 
-function parseUserListResponse(res: unknown): {
-  list: UserListItem[]
-  totalItems: number
-  totalPages: number
-} {
-  const r = res as Record<string, unknown>
-  const rawList = (r.data ?? r.content ?? []) as UserMember[]
+function parseUserListResponse(res: {
+  data?: UserMember[]
+  pagination?: { totalItems: number; totalPages: number }
+}): { list: UserListItem[]; totalItems: number; totalPages: number } {
+  const rawList = res.data ?? []
   const list = rawList.map(mapUserFromApi)
-  const p = (r.pagination ?? r) as Record<string, unknown>
-  const totalItems =
-    Number(p.totalItems) ??
-    Number(p.totalElements) ??
-    Number(p.total_items) ??
-    Number(r.totalElements) ??
-    0
-  const totalPages =
-    Number(p.totalPages) ??
-    Number(p.total_pages) ??
-    Number(r.totalPages) ??
-    (totalItems > 0 ? Math.ceil(totalItems / PAGE_SIZE) : 0)
+  const p = res.pagination
+  const totalItems = p?.totalItems ?? 0
+  const totalPages = p?.totalPages ?? (totalItems > 0 ? Math.ceil(totalItems / PAGE_SIZE) : 0)
   return { list, totalItems, totalPages }
 }
 

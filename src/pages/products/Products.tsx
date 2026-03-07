@@ -167,14 +167,9 @@ function Products() {
         orderBy: 'DESC',
         sortBy: 'createdAt',
       })
-      .then((res: { data?: unknown }) => {
-        const raw = (res.data ?? []) as Array<Record<string, unknown>>
-        const mapped = raw.map((b) => {
-          const anyBook = b as any
-          const createdAt = anyBook.createdAt ?? anyBook.created_at ?? ''
-          return { ...anyBook, createdAt } as Book
-        })
-        setRemoteBooks(mapped)
+      .then((res: { data?: Book[] }) => {
+        const data = (res.data ?? []) as Book[]
+        setRemoteBooks(data)
       })
       .catch((error: { message?: string; error?: string }) => {
         const msg = error?.message ?? error?.error ?? 'Không thể tải danh sách sách.'
@@ -194,8 +189,8 @@ function Products() {
         orderBy: 'ASC',
         sortBy: 'name',
       })
-      .then((res: { data?: unknown }) => {
-        const data = (res.data ?? []) as Category[]
+      .then((res: { data?: Category[] }) => {
+        const data = res.data ?? []
         setCategories(data)
       })
       .catch((error: { message?: string; error?: string }) => {
@@ -276,8 +271,8 @@ function Products() {
         publishDate: createForm.publishDate,
         price: priceNum,
       })
-      .then((res: { data?: unknown }) => {
-        const created = res.data as Book
+      .then((res: { data?: Book }) => {
+        const created = res.data!
         setRemoteBooks((prev) => [created, ...prev])
         setCreateForm(INIT_CREATE_FORM)
         setCreateFormErrors({})
@@ -368,7 +363,6 @@ function Products() {
                     currentOrder={sortOrder}
                     onSort={handleSort}
                   />
-                  <th className={styles.thIsbn}>ISBN</th>
                   <ThSort
                     field="category"
                     label="Danh mục"
@@ -406,7 +400,6 @@ function Products() {
                         {book.title}
                       </td>
                       <td className={styles.tdAuthor} title={book.author}>{book.author}</td>
-                      <td className={styles.tdIsbn} title={book.isbn}>{book.isbn}</td>
                       <td className={styles.tdCategory} title={getCategoryName(book)}>
                         {getCategoryName(book)}
                       </td>

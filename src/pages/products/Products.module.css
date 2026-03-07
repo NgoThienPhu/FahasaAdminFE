@@ -275,7 +275,7 @@
 
 .thTitle,
 .tdTitle {
-  width: 22%;
+  width: 23%;
 }
 
 .tdTitle {
@@ -288,7 +288,7 @@
 
 .thAuthor,
 .tdAuthor {
-  width: 13%;
+  width: 14%;
 }
 
 .tdAuthor {
@@ -297,21 +297,9 @@
   white-space: nowrap;
 }
 
-.thIsbn,
-.tdIsbn {
-  width: 11%;
-  font-variant-numeric: tabular-nums;
-}
-
-.tdIsbn {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .thCategory,
 .tdCategory {
-  width: 14%;
+  width: 15%;
 }
 
 .tdCategory {
@@ -322,13 +310,13 @@
 
 .thPublisher,
 .tdPublisher {
-  width: 12%;
+  width: 13%;
   white-space: nowrap;
 }
 
 .thCreatedAt,
 .tdCreatedAt {
-  width: 14%;
+  width: 15%;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   font-size: 0.875rem;
@@ -342,7 +330,7 @@
 
 .thAction,
 .tdAction {
-  width: 12.5%;
+  width: 15%;
   text-align: center;
 }
 

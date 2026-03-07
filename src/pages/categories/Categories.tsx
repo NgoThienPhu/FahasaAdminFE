@@ -134,9 +134,9 @@ function Categories() {
         sortBy: sortField,
         search: searchKeyword || undefined,
       })
-      .then((res: { data?: unknown; pagination?: { totalItems?: number; totalPages?: number } }) => {
-        const data = (res.data ?? []) as CategoryListItem[]
-        setList(data)
+      .then((res: { data?: Category[]; pagination?: { totalItems: number; totalPages: number } }) => {
+        const data = res.data ?? []
+        setList(data as CategoryListItem[])
         const p = res.pagination
         setTotalItems(p?.totalItems ?? data.length)
         setTotalPages(p?.totalPages ?? (data.length ? 1 : 0))
