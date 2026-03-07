@@ -12,11 +12,13 @@ import {
   FiFileText,
   FiImage,
   FiPlus,
+  FiBook,
+  FiPackage,
 } from 'react-icons/fi'
 import { useNotification } from '../../../contexts/NotificationContext'
 import type { Book as EntityBook } from '../../../services/entities/Book'
 import type { Category } from '../../../services/entities/Category'
-import bookApi from '../../../services/apis/BookApi'
+import bookApi from '../../../services/apis/bookApi'
 import categoryApi from '../../../services/apis/CategoryApi'
 import { TipTapEditor } from '../../../components/TipTapEditor'
 import styles from './BookDetail.module.css'
@@ -581,7 +583,7 @@ function BookDetail() {
           <div className={styles.detailCol}>
             {!isEditing ? (
               <div className={styles.detailView}>
-                <div className={styles.detailHead}>
+                <header className={styles.detailHead}>
                   <div className={styles.titleRow}>
                     <h1 className={styles.bookTitle}>{book.title}</h1>
                     <button
@@ -603,52 +605,60 @@ function BookDetail() {
                       {formatCurrency(price)}
                     </div>
                   )}
-                </div>
-                <div className={styles.detailMeta}>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}><FiTag aria-hidden /> Thể loại</span>
-                    <span className={styles.metaValue}>{getCategoryName(book)}</span>
-                  </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}><FiHash aria-hidden /> ISBN</span>
-                    <span className={styles.metaValue}>{book.isbn}</span>
-                  </div>
-                  {book.publisher && (
+                </header>
+
+                <section className={styles.detailInfoCard} aria-label="Thông tin sách">
+                  <div className={styles.detailMeta}>
                     <div className={styles.metaItem}>
-                      <span className={styles.metaLabel}><FiFileText aria-hidden /> Nhà cung cấp</span>
-                      <span className={styles.metaValue}>{book.publisher}</span>
+                      <span className={styles.metaLabel}><FiTag aria-hidden /> Thể loại</span>
+                      <span className={styles.metaValue}>{getCategoryName(book)}</span>
                     </div>
-                  )}
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}><FiCalendar aria-hidden /> Ngày phát hành</span>
-                    <span className={styles.metaValue}>{formatDate(book.publishDate)}</span>
+                    <div className={styles.metaItem}>
+                      <span className={styles.metaLabel}><FiHash aria-hidden /> ISBN</span>
+                      <span className={styles.metaValue}>{book.isbn}</span>
+                    </div>
+                    {book.publisher && (
+                      <div className={styles.metaItem}>
+                        <span className={styles.metaLabel}><FiFileText aria-hidden /> Nhà cung cấp</span>
+                        <span className={styles.metaValue}>{book.publisher}</span>
+                      </div>
+                    )}
+                    <div className={styles.metaItem}>
+                      <span className={styles.metaLabel}><FiCalendar aria-hidden /> Ngày phát hành</span>
+                      <span className={styles.metaValue}>{formatDate(book.publishDate)}</span>
+                    </div>
+                    <div className={styles.metaItem}>
+                      <span className={styles.metaLabel}><FiCalendar aria-hidden /> Ngày tạo</span>
+                      <span className={styles.metaValue}>{formatDate(book.createdAt)}</span>
+                    </div>
                   </div>
-                  <div className={styles.metaItem}>
-                    <span className={styles.metaLabel}><FiCalendar aria-hidden /> Ngày tạo</span>
-                    <span className={styles.metaValue}>{formatDate(book.createdAt)}</span>
-                  </div>
-                  <div className={styles.metaItemDescription}>
-                    <span className={styles.metaLabel}><FiFileText aria-hidden /> Mô tả</span>
-                    <span className={styles.metaValue}>
-                      {book.description?.trim() ? (
-                        /<[a-z][\s\S]*>/i.test(book.description) ? (
-                          <span className={styles.descriptionHtml} dangerouslySetInnerHTML={{ __html: book.description }} />
-                        ) : (
-                          book.description
-                        )
+                </section>
+
+                <section className={styles.detailDescriptionCard} aria-label="Mô tả">
+                  <h2 className={styles.detailDescriptionTitle}>Mô tả</h2>
+                  <div className={styles.detailDescriptionBody}>
+                    {book.description?.trim() ? (
+                      /<[a-z\/]/.test(book.description) ? (
+                        <div className={styles.descriptionHtml} dangerouslySetInnerHTML={{ __html: book.description }} />
                       ) : (
-                        'Chưa có mô tả.'
-                      )}
-                    </span>
+                        book.description
+                      )
+                    ) : (
+                      <p className={styles.detailDescriptionEmpty}>Chưa có mô tả.</p>
+                    )}
                   </div>
-                </div>
+                </section>
               </div>
             ) : (
               <form onSubmit={handleSaveEdit} className={styles.editForm}>
                 <div className={styles.editFormBody}>
-                  <section className={styles.formSection}>
-                    <h3 className={styles.formSectionTitle}>Thông tin cơ bản</h3>
-                    <div className={styles.formSectionFields}>
+                  {/* Thông tin cơ bản: chỉ Tiêu đề + Tác giả */}
+                  <section className={`${styles.formSection} ${styles.formSectionBasic}`}>
+                    <h3 className={styles.formSectionTitleBasic}>
+                      <FiBook className={styles.formSectionTitleIcon} aria-hidden />
+                      Thông tin cơ bản
+                    </h3>
+                    <div className={styles.formSectionBasicRow}>
                       <div className={styles.formField}>
                         <label htmlFor="edit-title" className={styles.formLabel}>
                           Tiêu đề sách <span className={styles.required}>*</span>
@@ -667,22 +677,8 @@ function BookDetail() {
                         )}
                       </div>
                       <div className={styles.formField}>
-                        <label htmlFor="edit-description" className={styles.formLabel}>
-                          Mô tả <span className={styles.required}>*</span>
-                        </label>
-                        <TipTapEditor
-                          id="edit-description"
-                          value={editForm.description}
-                          onChange={(html) => setEditForm((f) => ({ ...f, description: html }))}
-                          placeholder="Mô tả ngắn về nội dung sách (có thể dùng in đậm, in nghiêng, danh sách, link)"
-                          disabled={submitting}
-                        />
-                        {editFormErrors.description && (
-                          <span className={styles.formError}>{editFormErrors.description}</span>
-                        )}
-                      </div>
-                      <div className={styles.formField}>
-                        <label htmlFor="edit-author" className={styles.formLabel}>
+                        <label htmlFor="edit-author" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
+                          <FiUser className={styles.formLabelIcon} aria-hidden />
                           Tác giả <span className={styles.required}>*</span>
                         </label>
                         <input
@@ -700,11 +696,17 @@ function BookDetail() {
                       </div>
                     </div>
                   </section>
-                  <section className={styles.formSection}>
-                    <h3 className={styles.formSectionTitle}>Thông tin xuất bản</h3>
-                    <div className={styles.formSectionGrid}>
+
+                  {/* Thông tin xuất bản */}
+                  <section className={`${styles.formSection} ${styles.formSectionPublish}`}>
+                    <h3 className={styles.formSectionTitleCard}>
+                      <FiPackage className={styles.formSectionTitleIcon} aria-hidden />
+                      Thông tin xuất bản
+                    </h3>
+                    <div className={styles.formSectionPublishGrid}>
                       <div className={styles.formField}>
-                        <label htmlFor="edit-publisher" className={styles.formLabel}>
+                        <label htmlFor="edit-publisher" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
+                          <FiFileText className={styles.formLabelIcon} aria-hidden />
                           Nhà cung cấp <span className={styles.required}>*</span>
                         </label>
                         <input
@@ -721,7 +723,8 @@ function BookDetail() {
                         )}
                       </div>
                       <div className={styles.formField}>
-                        <label htmlFor="edit-isbn" className={styles.formLabel}>
+                        <label htmlFor="edit-isbn" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
+                          <FiHash className={styles.formLabelIcon} aria-hidden />
                           ISBN <span className={styles.required}>*</span>
                         </label>
                         <input
@@ -738,7 +741,8 @@ function BookDetail() {
                         )}
                       </div>
                       <div className={styles.formField}>
-                        <label htmlFor="edit-categoryId" className={styles.formLabel}>
+                        <label htmlFor="edit-categoryId" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
+                          <FiTag className={styles.formLabelIcon} aria-hidden />
                           Danh mục <span className={styles.required}>*</span>
                         </label>
                         <select
@@ -760,7 +764,8 @@ function BookDetail() {
                         )}
                       </div>
                       <div className={styles.formField}>
-                        <label htmlFor="edit-publishDate" className={styles.formLabel}>
+                        <label htmlFor="edit-publishDate" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
+                          <FiCalendar className={styles.formLabelIcon} aria-hidden />
                           Ngày phát hành <span className={styles.required}>*</span>
                         </label>
                         <input
@@ -775,6 +780,26 @@ function BookDetail() {
                           <span className={styles.formError}>{editFormErrors.publishDate}</span>
                         )}
                       </div>
+                    </div>
+                  </section>
+
+                  {/* Mô tả — đặt ở dưới cùng */}
+                  <section className={`${styles.formSection} ${styles.formSectionDescription}`}>
+                    <h3 className={styles.formSectionTitleCard}>
+                      <FiFileText className={styles.formSectionTitleIcon} aria-hidden />
+                      Mô tả sách <span className={styles.required}>*</span>
+                    </h3>
+                    <div className={`${styles.formField} ${styles.descriptionEditorWrap}`}>
+                      <TipTapEditor
+                        id="edit-description"
+                        value={editForm.description}
+                        onChange={(html) => setEditForm((f) => ({ ...f, description: html }))}
+                        placeholder="Mô tả ngắn về nội dung sách (có thể dùng in đậm, in nghiêng, danh sách, link)"
+                        disabled={submitting}
+                      />
+                      {editFormErrors.description && (
+                        <span className={styles.formError}>{editFormErrors.description}</span>
+                      )}
                     </div>
                   </section>
                 </div>

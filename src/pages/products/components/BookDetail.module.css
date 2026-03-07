@@ -286,13 +286,17 @@
 .detailView {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .detailHead {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  padding-bottom: 0.25rem;
 }
 
 .titleRow {
@@ -384,6 +388,27 @@
   opacity: 0.9;
 }
 
+/* ---- Thẻ thông tin (Thể loại, ISBN, ...) ---- */
+.detailInfoCard {
+  flex-shrink: 0;
+  background: #fafbfc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+}
+
+.detailInfoCard .detailMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .detailInfoCard .detailMeta {
+    grid-template-columns: 1fr;
+  }
+}
+
 .detailMeta {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -393,9 +418,12 @@
 .metaItem {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #f1f5f9;
+  gap: 0.2rem;
+}
+
+.detailInfoCard .metaItem {
+  padding: 0;
+  border: none;
 }
 
 .metaLabel {
@@ -421,49 +449,142 @@
   font-weight: 500;
 }
 
-.metaItemDescription {
-  grid-column: 1 / -1;
+/* ---- Thẻ mô tả ---- */
+.detailDescriptionCard {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.75rem 0 0;
-  border-bottom: none;
+  background: #fafbfc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-.metaItemDescription .metaLabel {
-  margin-bottom: 0.15rem;
+.detailDescriptionTitle {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 1rem 1.25rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.metaItemDescription .metaValue {
+.detailDescriptionBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 1.25rem;
   font-size: 0.9rem;
   line-height: 1.65;
-  color: #475569;
-  white-space: pre-wrap;
+  color: #1e293b;
   word-break: break-word;
 }
 
-.metaItemDescription .descriptionHtml {
-  display: block;
-  white-space: normal;
+.detailDescriptionEmpty {
+  margin: 0;
+  color: #94a3b8;
+  font-style: italic;
 }
 
-.metaItemDescription .descriptionHtml p {
+.detailDescriptionCard .descriptionHtml {
+  display: block;
+  white-space: normal;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #1e293b;
+}
+
+.detailDescriptionCard .descriptionHtml p {
   margin: 0 0 0.5rem;
 }
 
-.metaItemDescription .descriptionHtml p:last-child {
+.detailDescriptionCard .descriptionHtml p:last-child {
   margin-bottom: 0;
 }
 
-.metaItemDescription .descriptionHtml ul,
-.metaItemDescription .descriptionHtml ol {
+.detailDescriptionCard .descriptionHtml ul,
+.detailDescriptionCard .descriptionHtml ol {
   padding-left: 1.5rem;
   margin: 0.5rem 0;
 }
 
-.metaItemDescription .descriptionHtml a {
+.detailDescriptionCard .descriptionHtml ul {
+  list-style-type: disc;
+}
+
+.detailDescriptionCard .descriptionHtml ol {
+  list-style-type: decimal;
+}
+
+.detailDescriptionCard .descriptionHtml li {
+  margin: 0.2rem 0;
+}
+
+.detailDescriptionCard .descriptionHtml a {
   color: #0f3460;
   text-decoration: underline;
+}
+
+.detailDescriptionCard .descriptionHtml strong {
+  font-weight: 700;
+}
+
+.detailDescriptionCard .descriptionHtml em {
+  font-style: italic;
+}
+
+.detailDescriptionCard .descriptionHtml s {
+  text-decoration: line-through;
+}
+
+.detailDescriptionCard .descriptionHtml code {
+  padding: 0.15em 0.35em;
+  font-size: 0.9em;
+  font-family: ui-monospace, monospace;
+  background: #f1f5f9;
+  color: #0f172a;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.detailDescriptionCard .descriptionHtml blockquote {
+  margin: 0.75rem 0;
+  padding: 0.5rem 0 0.5rem 1rem;
+  border-left: 4px solid #0f3460;
+  background: #f8fafc;
+  color: #475569;
+  font-style: italic;
+}
+
+.detailDescriptionCard .descriptionHtml hr {
+  margin: 1rem 0;
+  border: none;
+  border-top: 2px solid #e2e8f0;
+}
+
+.detailDescriptionCard .descriptionHtml h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.75rem 0 0.5rem;
+  line-height: 1.3;
+}
+
+.detailDescriptionCard .descriptionHtml h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.6rem 0 0.4rem;
+  line-height: 1.35;
+}
+
+.detailDescriptionCard .descriptionHtml h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.35rem;
+  line-height: 1.4;
 }
 
 /* ========== Form (edit mode) ========== */
@@ -490,6 +611,110 @@
   border: 1px solid #f1f5f9;
   border-radius: 12px;
   padding: 1.25rem 1.5rem;
+}
+
+/* ---- Thông tin cơ bản ---- */
+.formSectionBasic {
+  background: #fafbfc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+}
+
+.formSectionTitleBasic {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  letter-spacing: -0.01em;
+}
+
+.formSectionTitleIcon {
+  width: 18px;
+  height: 18px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.formSectionBasicFields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.formSectionBasicRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .formSectionBasicRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Thông tin xuất bản ---- */
+.formSectionPublish {
+  background: #fafbfc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+}
+
+.formSectionTitleCard {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  letter-spacing: -0.01em;
+}
+
+.formSectionPublishGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .formSectionPublishGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Mô tả sách (dưới cùng) ---- */
+.formSectionDescription {
+  background: #fafbfc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem 1.75rem;
+}
+
+.descriptionEditorWrap > div > div:last-child {
+  min-height: 20rem;
+}
+
+.formLabelWithIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.formLabelIcon {
+  width: 14px;
+  height: 14px;
+  color: #64748b;
+  flex-shrink: 0;
 }
 
 .formSectionTitle {

@@ -14,20 +14,20 @@ const userApi = {
     const search = params.search?.trim()
     const searchParam = search ? `&search=${encodeURIComponent(search)}` : ''
     return apiClient.get(
-      `/users?page=${params.page}&size=${params.pageSize}&orderBy=${params.orderBy}&sortBy=${params.sortBy}${searchParam}`
+      `/accounts?page=${params.page}&size=${params.pageSize}&orderBy=${params.orderBy}&sortBy=${params.sortBy}${searchParam}`
     )
   },
 
   lockUser(id: string): Promise<APISuccessResponse<null>> {
-    return apiClient.put(`/users/${id}/lock`)
+    return apiClient.put(`/accounts/${id}/lock`)
   },
 
   unlockUser(id: string): Promise<APISuccessResponse<null>> {
-    return apiClient.put(`/users/${id}/unlock`)
+    return apiClient.put(`/accounts/${id}/unlock`)
   },
 
   resetPassword(id: string): Promise<APISuccessResponse<null>> {
-    return apiClient.post(`/users/${id}/reset-password`)
+    return apiClient.post(`/accounts/${id}/reset-password`)
   },
 }
 
