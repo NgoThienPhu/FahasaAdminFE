@@ -40,10 +40,12 @@ export interface BookEditFormBook {
   extraImageUrls?: string[]
 }
 
-interface Props {
+export interface BookEditFormProps {
   book: BookEditFormBook
   categories: Category[]
   isExtraDirty: boolean
+  /** Khi true (vd. đang upload ảnh phụ), disable Hủy và Lưu thay đổi */
+  disableActions?: boolean
   onCancel: () => void
   onSuccess: (updatedBook: BookEditFormBook) => void
 }
@@ -65,7 +67,7 @@ function validate(form: EditFormData): Record<string, string> {
   return err
 }
 
-export function BookEditForm({ book, categories, isExtraDirty, onCancel, onSuccess }: Props) {
+export function BookEditForm({ book, categories, isExtraDirty, disableActions = false, onCancel, onSuccess }: BookEditFormProps) {
   const { addNotification } = useNotification()
 
   const [form, setForm] = useState<EditFormData>({
@@ -106,7 +108,7 @@ export function BookEditForm({ book, categories, isExtraDirty, onCancel, onSucce
     form.isbn !== (book.isbn ?? '').trim() ||
     form.categoryId !== idDanhMucGoc ||
     form.publishDate !== ngayGoc
-  const choPhepLuu = formCoThayDoi || isExtraDirty
+  const choPhepLuu = formCoThayDoi
 
   const capNhatTruong = (ten: keyof EditFormData, giaTri: string) => {
     setForm((f) => ({ ...f, [ten]: giaTri }))
@@ -285,10 +287,10 @@ export function BookEditForm({ book, categories, isExtraDirty, onCancel, onSucce
       </div>
 
       <div className={styles.editFormFooter}>
-        <button type="button" className={styles.formBtnCancel} onClick={onCancel} disabled={dangGui}>
+        <button type="button" className={styles.formBtnCancel} onClick={onCancel} disabled={dangGui || disableActions}>
           <FiX aria-hidden /> Hủy
         </button>
-        <button type="submit" className={styles.formBtnSubmit} disabled={dangGui || !choPhepLuu}>
+        <button type="submit" className={styles.formBtnSubmit} disabled={dangGui || disableActions || !choPhepLuu}>
           {dangGui ? 'Đang lưu…' : 'Lưu thay đổi'}
         </button>
       </div>

@@ -208,6 +208,12 @@
   height: 15px;
 }
 
+.uploadLabelDisabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .removeImageBtn {
   padding: 0.45rem 0.75rem;
   font-size: 0.8125rem;
@@ -263,6 +269,14 @@
   gap: 0.4rem;
 }
 
+.extraSectionCount {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
 .extraSectionActions {
   display: flex;
   align-items: center;
@@ -281,21 +295,6 @@
 
 .extraSectionActionsRow .extraSectionActions {
   margin-left: 0;
-}
-
-.extraSectionHint {
-  margin: 0;
-  margin-top: 0.35rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: #0f3460;
-  line-height: 1.35;
-  text-align: center;
-  max-width: 100%;
-  background: #e0f2fe;
-  border: 1px solid #bae6fd;
-  border-radius: 6px;
 }
 
 .extraAddHeaderDisabled {

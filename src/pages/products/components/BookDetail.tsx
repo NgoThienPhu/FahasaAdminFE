@@ -55,6 +55,8 @@ export default function BookDetail() {
 
   const [book, setBook] = useState<Book | undefined>(() => (location.state as any)?.book)
   const [dangChinhSua, setDangChinhSua] = useState(false)
+  const [dangUploadAnhPhu, setDangUploadAnhPhu] = useState(false)
+  const [dangUploadAnhBia, setDangUploadAnhBia] = useState(false)
   const [danhSachAnhPhuHienTai, setDanhSachAnhPhuHienTai] = useState<string[]>([])
   const [danhMucSach, setDanhMucSach] = useState<Category[]>([])
 
@@ -152,6 +154,8 @@ export default function BookDetail() {
             onPrimaryImageSaved={khiDaLuuAnhBia}
             onExtraImagesChange={setDanhSachAnhPhuHienTai}
             onExtraImagesSaved={khiDaLuuAnhPhu}
+            onExtraImagesUploading={setDangUploadAnhPhu}
+            onPrimaryImageUploading={setDangUploadAnhBia}
           />
 
           <div className={styles.detailCol}>
@@ -227,6 +231,7 @@ export default function BookDetail() {
                 book={book}
                 categories={danhMucSach}
                 isExtraDirty={anhPhuCoThayDoiChuaLuu}
+                disableActions={dangUploadAnhPhu || dangUploadAnhBia}
                 onCancel={huyChinhSua}
                 onSuccess={khiDaCapNhatSach}
               />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { FiImage, FiPlus, FiX, FiCheck, FiTrash2 } from 'react-icons/fi'
 import { useNotification } from '../../../contexts/NotificationContext'
 import bookImageApi from '../../../services/apis/BookImageApi'
@@ -43,6 +43,12 @@ function layDanhSachBookImageTuResponse(res: unknown): BookImage[] {
   return []
 }
 
+/** Một ảnh phụ đã lưu trên server (có id để xóa) */
+interface SavedSecondaryImage {
+  id: string
+  url: string
+}
+
 export interface BookImagesProps {
   bookId: string
   bookTitle: string
@@ -51,6 +57,10 @@ export interface BookImagesProps {
   onPrimaryImageSaved?: (url: string) => void
   onExtraImagesChange: (urls: string[]) => void
   onExtraImagesSaved?: (urls: string[]) => void
+  /** Gọi khi bắt đầu/kết thúc upload ảnh phụ để parent có thể disable các nút khác */
+  onExtraImagesUploading?: (uploading: boolean) => void
+  /** Gọi khi bắt đầu/kết thúc upload ảnh chính (bìa) để parent có thể disable các nút khác */
+  onPrimaryImageUploading?: (uploading: boolean) => void
 }
 
 export function BookImages({
@@ -61,21 +71,39 @@ export function BookImages({
   onPrimaryImageSaved,
   onExtraImagesChange,
   onExtraImagesSaved,
+  onExtraImagesUploading,
+  onPrimaryImageUploading,
 }: BookImagesProps) {
   const { addNotification } = useNotification()
 
   const [urlAnhBia, setUrlAnhBia] = useState<string | null>(null)
-  const [danhSachAnhPhu, setDanhSachAnhPhu] = useState<string[]>([])
+  const [savedSecondaryImages, setSavedSecondaryImages] = useState<SavedSecondaryImage[]>([])
+  const [pendingSecondaryFiles, setPendingSecondaryFiles] = useState<File[]>([])
   const [fileAnhBiaMoi, setFileAnhBiaMoi] = useState<File | null>(null)
   const [urlPreviewAnhBia, setUrlPreviewAnhBia] = useState<string | null>(null)
   const [loiHienThiAnhBia, setLoiHienThiAnhBia] = useState(false)
   const [dangTaiAnhBia, setDangTaiAnhBia] = useState(false)
-  const [confirmXoaUrl, setConfirmXoaUrl] = useState<string | null>(null)
+  const [dangTaiAnhPhu, setDangTaiAnhPhu] = useState(false)
+  const [dangXoaAnhPhu, setDangXoaAnhPhu] = useState(false)
+  const [itemXoaAnhPhu, setItemXoaAnhPhu] = useState<SavedSecondaryImage | null>(null)
+
+  /** Preview URLs cho ảnh phụ đang chờ upload */
+  const [pendingPreviewUrls, setPendingPreviewUrls] = useState<string[]>([])
+  useEffect(() => {
+    if (pendingSecondaryFiles.length === 0) {
+      setPendingPreviewUrls([])
+      return
+    }
+    const urls = pendingSecondaryFiles.map((f) => URL.createObjectURL(f))
+    setPendingPreviewUrls(urls)
+    return () => urls.forEach((u) => URL.revokeObjectURL(u))
+  }, [pendingSecondaryFiles])
 
   useEffect(() => {
     if (!bookId) {
       setUrlAnhBia(null)
-      setDanhSachAnhPhu([])
+      setSavedSecondaryImages([])
+      setPendingSecondaryFiles([])
       return
     }
     setUrlAnhBia(null)
@@ -88,16 +116,17 @@ export function BookImages({
         const listPhu = layDanhSachBookImageTuResponse(resPhu)
         const urlBia = chuyenThanhUrlDayDu(layUrlTuBookImage(listBia[0]))
         setUrlAnhBia(urlBia ?? null)
-        const urlsPhu = listPhu
-          .map((img) => layUrlTuBookImage(img))
-          .filter((u): u is string => Boolean(u))
-          .map((u) => chuyenThanhUrlDayDu(u))
-          .filter((u): u is string => u != null && u !== '')
-        setDanhSachAnhPhu(urlsPhu)
+        const saved = listPhu
+          .map((img) => {
+            const url = chuyenThanhUrlDayDu(layUrlTuBookImage(img))
+            return url && img.id ? { id: img.id, url } : null
+          })
+          .filter((x): x is SavedSecondaryImage => x != null)
+        setSavedSecondaryImages(saved)
       })
       .catch(() => {
         setUrlAnhBia(null)
-        setDanhSachAnhPhu([])
+        setSavedSecondaryImages([])
       })
   }, [bookId])
 
@@ -105,26 +134,24 @@ export function BookImages({
     if (!isEditing) {
       setFileAnhBiaMoi(null)
       setUrlPreviewAnhBia(null)
-      if (savedExtraImageUrls.length > 0) {
-        setDanhSachAnhPhu(savedExtraImageUrls)
-      } else if (bookId) {
+      setPendingSecondaryFiles([])
+      if (bookId) {
         bookImageApi
           .getBookSecondaryImages(bookId)
           .then((resPhu) => {
             const listPhu = layDanhSachBookImageTuResponse(resPhu)
-            const urlsPhu = listPhu
-              .map((img) => layUrlTuBookImage(img))
-              .filter((u): u is string => Boolean(u))
-              .map((u) => chuyenThanhUrlDayDu(u))
-              .filter((u): u is string => u != null && u !== '')
-            setDanhSachAnhPhu(urlsPhu)
+            const saved = listPhu
+              .map((img) => {
+                const url = chuyenThanhUrlDayDu(layUrlTuBookImage(img))
+                return url && img.id ? { id: img.id, url } : null
+              })
+              .filter((x): x is SavedSecondaryImage => x != null)
+            setSavedSecondaryImages(saved)
           })
-          .catch(() => setDanhSachAnhPhu([]))
-      } else {
-        setDanhSachAnhPhu([])
+          .catch(() => setSavedSecondaryImages([]))
       }
     }
-  }, [isEditing, savedExtraImageUrls, bookId])
+  }, [isEditing, bookId])
 
   useEffect(() => {
     if (!fileAnhBiaMoi) {
@@ -136,9 +163,25 @@ export function BookImages({
     return () => URL.revokeObjectURL(url)
   }, [fileAnhBiaMoi])
 
+  const danhSachAnhPhu = useMemo(
+    () => savedSecondaryImages.map((x) => x.url).concat(pendingPreviewUrls),
+    [savedSecondaryImages, pendingPreviewUrls]
+  )
+
   useEffect(() => {
     onExtraImagesChange(danhSachAnhPhu)
   }, [danhSachAnhPhu, onExtraImagesChange])
+
+  useEffect(() => {
+    onExtraImagesUploading?.(dangTaiAnhPhu)
+  }, [dangTaiAnhPhu, onExtraImagesUploading])
+
+  useEffect(() => {
+    onPrimaryImageUploading?.(dangTaiAnhBia)
+  }, [dangTaiAnhBia, onPrimaryImageUploading])
+
+  /** Đang upload bất kỳ ảnh nào (bìa hoặc phụ) → disable các nút có thể ảnh hưởng */
+  const dangUploadHinhAnh = dangTaiAnhBia || dangTaiAnhPhu
 
   useEffect(() => {
     setLoiHienThiAnhBia(false)
@@ -149,6 +192,7 @@ export function BookImages({
   const anhPhuCoThayDoi =
     savedExtraImageUrls.length !== danhSachAnhPhu.length ||
     savedExtraImageUrls.some((u, i) => u !== danhSachAnhPhu[i])
+  const soAnhPhuHienTai = savedSecondaryImages.length + pendingSecondaryFiles.length
 
   const khiChonAnhBia = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -183,20 +227,44 @@ export function BookImages({
       .finally(() => setDangTaiAnhBia(false))
   }
 
-  const luuAnhPhu = () => {
+  const luuAnhPhu = async () => {
     if (
       savedExtraImageUrls.length === danhSachAnhPhu.length &&
       savedExtraImageUrls.every((u, i) => u === danhSachAnhPhu[i])
     )
       return
-    onExtraImagesSaved?.(danhSachAnhPhu)
-    addNotification('success', 'Đã lưu ảnh phụ.')
+    if (pendingSecondaryFiles.length > 0 && bookId) {
+      setDangTaiAnhPhu(true)
+      try {
+        const res = await bookImageApi.uploadBookSecondaryImage(bookId, pendingSecondaryFiles)
+        const listMoi = layDanhSachBookImageTuResponse(res)
+        const savedMoi = listMoi
+          .map((img) => {
+            const url = chuyenThanhUrlDayDu(layUrlTuBookImage(img))
+            return url && img.id ? { id: img.id, url } : null
+          })
+          .filter((x): x is SavedSecondaryImage => x != null)
+        setSavedSecondaryImages((prev) => [...prev, ...savedMoi])
+        setPendingSecondaryFiles([])
+        const allUrls = [...savedSecondaryImages.map((x) => x.url), ...savedMoi.map((x) => x.url)]
+        onExtraImagesSaved?.(allUrls)
+        addNotification('success', 'Đã upload ảnh phụ.')
+      } catch (err: unknown) {
+        const msg = (err as { message?: string; error?: string })?.message ?? (err as { message?: string; error?: string })?.error ?? 'Upload ảnh phụ thất bại.'
+        addNotification('error', msg)
+      } finally {
+        setDangTaiAnhPhu(false)
+      }
+    } else {
+      onExtraImagesSaved?.(danhSachAnhPhu)
+      addNotification('success', 'Đã lưu ảnh phụ.')
+    }
   }
 
   const themAnhPhu = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files?.length) return
-    const conLai = SO_ANH_PHU_TOI_DA - danhSachAnhPhu.length
+    const conLai = SO_ANH_PHU_TOI_DA - soAnhPhuHienTai
     if (conLai <= 0) {
       addNotification('error', `Tối đa ${SO_ANH_PHU_TOI_DA} ảnh phụ. Đã đủ.`)
       e.target.value = ''
@@ -217,54 +285,42 @@ export function BookImages({
       e.target.value = ''
       return
     }
-    let daDoc = 0
-    const tong = canThem.length
-    const ketQua: string[] = []
-    canThem.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        if (typeof reader.result === 'string') ketQua.push(reader.result)
-        if (++daDoc === tong) {
-          setDanhSachAnhPhu((prev) => [...prev, ...ketQua.slice(0, SO_ANH_PHU_TOI_DA - prev.length)])
-        }
-      }
-      reader.onerror = () => {
-        if (++daDoc === tong) {
-          setDanhSachAnhPhu((prev) => [...prev, ...ketQua.slice(0, SO_ANH_PHU_TOI_DA - prev.length)])
-        }
-      }
-      reader.readAsDataURL(file)
-    })
+    setPendingSecondaryFiles((prev) => [...prev, ...canThem].slice(0, SO_ANH_PHU_TOI_DA - savedSecondaryImages.length))
     e.target.value = ''
   }
 
-  const xoaAnhPhuTheoIndex = (index: number) => {
-    setDanhSachAnhPhu((prev) => prev.filter((_, i) => i !== index))
+  const xoaAnhPhuPendingTheoIndex = (index: number) => {
+    setPendingSecondaryFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const moConfirmXoa = (url: string) => setConfirmXoaUrl(url)
-  const dongConfirmXoa = () => setConfirmXoaUrl(null)
+  const moConfirmXoaAnhPhu = (item: SavedSecondaryImage) => setItemXoaAnhPhu(item)
+  const dongConfirmXoa = () => setItemXoaAnhPhu(null)
 
-  const xacNhanXoaAnhPhu = () => {
-    if (!confirmXoaUrl) return
-    setDanhSachAnhPhu((prev) => {
-      const i = prev.indexOf(confirmXoaUrl)
-      if (i === -1) return prev
-      return prev.filter((_, idx) => idx !== i)
-    })
-    setConfirmXoaUrl(null)
+  const xacNhanXoaAnhPhu = async () => {
+    if (!bookId || !itemXoaAnhPhu) return
+    setDangXoaAnhPhu(true)
+    try {
+      await bookImageApi.deleteBookSecondaryImage(bookId, itemXoaAnhPhu.id)
+      setSavedSecondaryImages((prev) => prev.filter((x) => x.id !== itemXoaAnhPhu.id))
+      onExtraImagesSaved?.(
+        savedSecondaryImages.filter((x) => x.id !== itemXoaAnhPhu.id).map((x) => x.url).concat(pendingPreviewUrls)
+      )
+      addNotification('success', 'Đã xóa ảnh phụ.')
+    } catch (err: unknown) {
+      const msg = (err as { message?: string; error?: string })?.message ?? (err as { message?: string; error?: string })?.error ?? 'Xóa ảnh phụ thất bại.'
+      addNotification('error', msg)
+    } finally {
+      setDangXoaAnhPhu(false)
+      setItemXoaAnhPhu(null)
+    }
   }
 
   const hienThiAnhLoi = (e: React.SyntheticEvent<HTMLImageElement>) => {
     e.currentTarget.src = ANH_LOI_SRC
   }
 
-  const daDuAnhPhu = danhSachAnhPhu.length >= SO_ANH_PHU_TOI_DA
+  const daDuAnhPhu = soAnhPhuHienTai >= SO_ANH_PHU_TOI_DA
   const classNutThem = daDuAnhPhu ? `${styles.extraAddHeader} ${styles.extraAddHeaderDisabled}` : styles.extraAddHeader
-
-  /** Ảnh từ API / đã lưu (URL server); ảnh mới chọn từ máy (data URL) nằm ở "chờ upload" */
-  const anhPhuDaUpload = danhSachAnhPhu.filter((url) => !url.startsWith('data:'))
-  const anhPhuChoUpload = danhSachAnhPhu.filter((url) => url.startsWith('data:'))
 
   return (
     <>
@@ -284,18 +340,19 @@ export function BookImages({
         )}
         {isEditing && (
           <div className={styles.imageActionsOverlay}>
-            <label className={styles.uploadLabel}>
+            <label className={dangUploadHinhAnh ? `${styles.uploadLabel} ${styles.uploadLabelDisabled}` : styles.uploadLabel}>
               <input
                 type="file"
                 accept="image/*"
                 onChange={khiChonAnhBia}
                 className={styles.fileInput}
                 aria-label="Chọn ảnh bìa mới"
+                disabled={dangUploadHinhAnh}
               />
               <FiImage aria-hidden /> Thêm ảnh
             </label>
             {fileAnhBiaMoi && (
-              <button type="button" className={styles.removeImageBtn} onClick={xoaAnhBiaMoi}>
+              <button type="button" className={styles.removeImageBtn} onClick={xoaAnhBiaMoi} disabled={dangUploadHinhAnh}>
                 Xóa ảnh
               </button>
             )}
@@ -307,7 +364,7 @@ export function BookImages({
               type="button"
               className={styles.savePrimaryImageBtn}
               onClick={luuAnhBia}
-              disabled={dangTaiAnhBia}
+              disabled={dangUploadHinhAnh}
               aria-label="Lưu ảnh bìa"
             >
               {dangTaiAnhBia ? 'Đang lưu…' : <><FiCheck aria-hidden /> Lưu</>}
@@ -329,9 +386,12 @@ export function BookImages({
               <FiImage className={styles.extraSectionIcon} aria-hidden />
               <h2 className={styles.extraSectionTitle}>Ảnh phụ</h2>
             </div>
+            {isEditing && (
+              <span className={styles.extraSectionCount}>{soAnhPhuHienTai} / {SO_ANH_PHU_TOI_DA} Ảnh</span>
+            )}
             {isEditing && !anhPhuCoThayDoi && (
               <div className={styles.extraSectionActions}>
-                <label className={classNutThem}>
+                <label className={daDuAnhPhu || dangUploadHinhAnh ? `${styles.extraAddHeader} ${styles.extraAddHeaderDisabled}` : styles.extraAddHeader}>
                   <input
                     type="file"
                     accept="image/*"
@@ -339,7 +399,7 @@ export function BookImages({
                     onChange={themAnhPhu}
                     className={styles.fileInput}
                     aria-label="Thêm ảnh phụ"
-                    disabled={daDuAnhPhu}
+                    disabled={daDuAnhPhu || dangUploadHinhAnh}
                   />
                   <FiPlus className={styles.extraAddHeaderIcon} aria-hidden />
                   <span>Thêm ảnh</span>
@@ -347,51 +407,50 @@ export function BookImages({
               </div>
             )}
           </div>
-          {isEditing && anhPhuCoThayDoi && (
-            <div className={styles.extraSectionActionsRow}>
-              <div className={styles.extraSectionActions}>
-                <label className={classNutThem}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={themAnhPhu}
-                    className={styles.fileInput}
-                    aria-label="Thêm ảnh phụ"
-                    disabled={daDuAnhPhu}
-                  />
-                  <FiPlus className={styles.extraAddHeaderIcon} aria-hidden />
-                  <span>Thêm ảnh</span>
-                </label>
-                <button type="button" className={styles.extraSectionSave} onClick={luuAnhPhu}>
-                  Lưu ảnh phụ
-                </button>
+            {isEditing && anhPhuCoThayDoi && (
+              <div className={styles.extraSectionActionsRow}>
+                <div className={styles.extraSectionActions}>
+                  <label className={daDuAnhPhu || dangUploadHinhAnh ? `${styles.extraAddHeader} ${styles.extraAddHeaderDisabled}` : classNutThem}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={themAnhPhu}
+                      className={styles.fileInput}
+                      aria-label="Thêm ảnh phụ"
+                      disabled={daDuAnhPhu || dangUploadHinhAnh}
+                    />
+                    <FiPlus className={styles.extraAddHeaderIcon} aria-hidden />
+                    <span>Thêm ảnh</span>
+                  </label>
+                  <button
+                    type="button"
+                    className={styles.extraSectionSave}
+                    onClick={luuAnhPhu}
+                    disabled={dangUploadHinhAnh || pendingSecondaryFiles.length === 0}
+                  >
+                    {dangTaiAnhPhu ? 'Đang lưu…' : 'Lưu ảnh phụ'}
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-          {isEditing && (
-            <p className={styles.extraSectionHint}>
-              {daDuAnhPhu
-                ? `Đã đủ ${SO_ANH_PHU_TOI_DA} ảnh phụ.`
-                : `Có thể thêm tối đa ${SO_ANH_PHU_TOI_DA - danhSachAnhPhu.length} ảnh nữa (tối đa ${SO_ANH_PHU_TOI_DA} ảnh phụ).`}
-            </p>
-          )}
+            )}
         </div>
 
         {isEditing ? (
           <div className={styles.extraPart}>
-            {anhPhuChoUpload.length === 0 && (
+            {pendingPreviewUrls.length === 0 && (
               <>
                 <h3 className={styles.extraPartTitle}>Danh sách ảnh đã upload</h3>
-                {anhPhuDaUpload.length > 0 ? (
+                {savedSecondaryImages.length > 0 ? (
                   <div className={styles.extraGrid}>
-                    {anhPhuDaUpload.map((url, index) => (
-                      <div key={`da-luu-${url}-${index}`} className={`${styles.extraThumbWrap} ${styles.extraThumbWrapHoverRemove}`}>
-                        <img src={url} alt={`Ảnh đã lưu ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
+                    {savedSecondaryImages.map((item, index) => (
+                      <div key={`da-luu-${item.id}`} className={`${styles.extraThumbWrap} ${styles.extraThumbWrapHoverRemove}`}>
+                        <img src={item.url} alt={`Ảnh đã lưu ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
                         <button
                           type="button"
                           className={styles.extraThumbRemove}
-                          onClick={() => moConfirmXoa(url)}
+                          onClick={() => moConfirmXoaAnhPhu(item)}
+                          disabled={dangXoaAnhPhu || dangUploadHinhAnh}
                           aria-label={`Xóa ảnh phụ ${index + 1}`}
                           title="Xóa ảnh"
                         >
@@ -405,27 +464,25 @@ export function BookImages({
                 )}
               </>
             )}
-            {anhPhuChoUpload.length > 0 && (
+            {pendingPreviewUrls.length > 0 && (
               <>
                 <h3 className={styles.extraPartTitle}>Ảnh chờ upload</h3>
                 <div className={styles.extraGrid}>
-                  {anhPhuChoUpload.map((url, index) => {
-                    const indexTrongDanhSach = anhPhuDaUpload.length + index
-                    return (
-                      <div key={`cho-upload-${indexTrongDanhSach}`} className={styles.extraThumbWrap}>
-                        <img src={url} alt={`Ảnh chờ upload ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
-                        <button
-                          type="button"
-                          className={styles.extraThumbRemove}
-                          onClick={() => xoaAnhPhuTheoIndex(indexTrongDanhSach)}
-                          aria-label={`Xóa ảnh chờ upload ${index + 1}`}
-                          title="Xóa ảnh"
-                        >
-                          <FiX aria-hidden />
-                        </button>
-                      </div>
-                    )
-                  })}
+                  {pendingPreviewUrls.map((url, index) => (
+                    <div key={`cho-upload-${index}`} className={styles.extraThumbWrap}>
+                      <img src={url} alt={`Ảnh chờ upload ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
+                      <button
+                        type="button"
+                        className={styles.extraThumbRemove}
+                        onClick={() => xoaAnhPhuPendingTheoIndex(index)}
+                        disabled={dangUploadHinhAnh}
+                        aria-label={`Xóa ảnh chờ upload ${index + 1}`}
+                        title="Xóa ảnh"
+                      >
+                        <FiX aria-hidden />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </>
             )}
@@ -448,7 +505,7 @@ export function BookImages({
       </section>
     </div>
 
-    {confirmXoaUrl && (
+    {itemXoaAnhPhu && (
       <div
         className={styles.confirmOverlay}
         onClick={dongConfirmXoa}
@@ -467,11 +524,11 @@ export function BookImages({
             Bạn có chắc muốn xóa ảnh phụ này? Hành động không thể hoàn tác.
           </p>
           <div className={styles.confirmModalActions}>
-            <button type="button" className={styles.confirmModalBtnCancel} onClick={dongConfirmXoa}>
+            <button type="button" className={styles.confirmModalBtnCancel} onClick={dongConfirmXoa} disabled={dangXoaAnhPhu}>
               Hủy
             </button>
-            <button type="button" className={styles.confirmModalBtnDanger} onClick={xacNhanXoaAnhPhu}>
-              Xóa
+            <button type="button" className={styles.confirmModalBtnDanger} onClick={xacNhanXoaAnhPhu} disabled={dangXoaAnhPhu}>
+              {dangXoaAnhPhu ? 'Đang xóa…' : 'Xóa'}
             </button>
           </div>
         </div>

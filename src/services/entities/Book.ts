@@ -1,7 +1,6 @@
 import type BaseEntity from "./BaseEntity";
 import type { Category } from "./Category";
 import type { Price } from "./Price";
-import type { Image } from "./Image";
 
 export interface Book extends BaseEntity {
     title: string;
@@ -12,5 +11,4 @@ export interface Book extends BaseEntity {
     category: Category;
     publishDate: string;
     price: Price;
-    images: Image[];
 }
