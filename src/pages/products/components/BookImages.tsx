@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { FiImage, FiPlus, FiX, FiCheck, FiTrash2 } from 'react-icons/fi'
+import Lightbox from 'yet-another-react-lightbox'
+import 'yet-another-react-lightbox/styles.css'
 import { useNotification } from '../../../contexts/NotificationContext'
 import bookImageApi from '../../../services/apis/BookImageApi'
 import { API_BE_SERVER_URL } from '../../../services/apis/config'
@@ -194,6 +196,23 @@ export function BookImages({
     savedExtraImageUrls.some((u, i) => u !== danhSachAnhPhu[i])
   const soAnhPhuHienTai = savedSecondaryImages.length + pendingSecondaryFiles.length
 
+  /** Slides cho lightbox: ảnh bìa (nếu có) + toàn bộ ảnh phụ (đã lưu + chờ upload) */
+  const lightboxSlides = useMemo(() => {
+    const s: { src: string; alt?: string }[] = []
+    if (urlHienThiBia) s.push({ src: urlHienThiBia, alt: `Bìa: ${bookTitle}` })
+    danhSachAnhPhu.forEach((url, i) => s.push({ src: url, alt: `Ảnh phụ ${i + 1}` }))
+    return s
+  }, [urlHienThiBia, danhSachAnhPhu, bookTitle])
+
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+
+  const moLightbox = (index: number) => {
+    if (lightboxSlides.length === 0) return
+    setLightboxIndex(Math.min(index, lightboxSlides.length - 1))
+    setLightboxOpen(true)
+  }
+
   const khiChonAnhBia = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file?.type.startsWith('image/')) {
@@ -331,12 +350,21 @@ export function BookImages({
             <FiImage className={styles.coverPlaceholderIcon} />
           </div>
         ) : (
-          <img
-            src={urlHienThiBia ?? undefined}
-            alt={`Bìa: ${bookTitle}`}
-            className={styles.coverImg}
-            onError={() => setLoiHienThiAnhBia(true)}
-          />
+          <div
+            className={styles.coverImgWrap}
+            role="button"
+            tabIndex={0}
+            onClick={() => moLightbox(0)}
+            onKeyDown={(e) => e.key === 'Enter' && moLightbox(0)}
+            aria-label="Xem ảnh bìa phóng to"
+          >
+            <img
+              src={urlHienThiBia ?? undefined}
+              alt={`Bìa: ${bookTitle}`}
+              className={styles.coverImg}
+              onError={() => setLoiHienThiAnhBia(true)}
+            />
+          </div>
         )}
         {isEditing && (
           <div className={styles.imageActionsOverlay}>
@@ -443,9 +471,13 @@ export function BookImages({
                 <h3 className={styles.extraPartTitle}>Danh sách ảnh đã upload</h3>
                 {savedSecondaryImages.length > 0 ? (
                   <div className={styles.extraGrid}>
-                    {savedSecondaryImages.map((item, index) => (
+                    {savedSecondaryImages.map((item, index) => {
+                      const slideIndex = (urlHienThiBia ? 1 : 0) + index
+                      return (
                       <div key={`da-luu-${item.id}`} className={`${styles.extraThumbWrap} ${styles.extraThumbWrapHoverRemove}`}>
-                        <img src={item.url} alt={`Ảnh đã lưu ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
+                        <div className={styles.extraThumbImgWrap} onClick={() => moLightbox(slideIndex)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && moLightbox(slideIndex)} aria-label={`Xem ảnh ${index + 1}`}>
+                          <img src={item.url} alt={`Ảnh đã lưu ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
+                        </div>
                         <button
                           type="button"
                           className={styles.extraThumbRemove}
@@ -457,7 +489,8 @@ export function BookImages({
                           <FiX aria-hidden />
                         </button>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 ) : (
                   <p className={styles.extraEmpty}>Chưa có ảnh nào đã upload.</p>
@@ -468,9 +501,13 @@ export function BookImages({
               <>
                 <h3 className={styles.extraPartTitle}>Ảnh chờ upload</h3>
                 <div className={styles.extraGrid}>
-                  {pendingPreviewUrls.map((url, index) => (
+                  {pendingPreviewUrls.map((url, index) => {
+                    const slideIndex = (urlHienThiBia ? 1 : 0) + savedSecondaryImages.length + index
+                    return (
                     <div key={`cho-upload-${index}`} className={styles.extraThumbWrap}>
-                      <img src={url} alt={`Ảnh chờ upload ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
+                      <div className={styles.extraThumbImgWrap} onClick={() => moLightbox(slideIndex)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && moLightbox(slideIndex)} aria-label={`Xem ảnh chờ upload ${index + 1}`}>
+                        <img src={url} alt={`Ảnh chờ upload ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
+                      </div>
                       <button
                         type="button"
                         className={styles.extraThumbRemove}
@@ -482,7 +519,8 @@ export function BookImages({
                         <FiX aria-hidden />
                       </button>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </>
             )}
@@ -490,11 +528,14 @@ export function BookImages({
         ) : (
           danhSachAnhPhu.length > 0 ? (
             <div className={styles.extraGridView}>
-              {danhSachAnhPhu.map((url, index) => (
-                <div key={`xem-${index}`} className={styles.extraThumbWrapView}>
+              {danhSachAnhPhu.map((url, index) => {
+                const slideIndex = (urlHienThiBia ? 1 : 0) + index
+                return (
+                <div key={`xem-${index}`} className={styles.extraThumbWrapView} onClick={() => moLightbox(slideIndex)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && moLightbox(slideIndex)} aria-label={`Xem ảnh phụ ${index + 1}`}>
                   <img src={url} alt={`Ảnh phụ ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className={styles.extraEmpty}>
@@ -504,6 +545,16 @@ export function BookImages({
         )}
       </section>
     </div>
+
+    {lightboxSlides.length > 0 && (
+      <Lightbox
+        open={lightboxOpen}
+        close={() => setLightboxOpen(false)}
+        index={lightboxIndex}
+        slides={lightboxSlides}
+        on={{ view: ({ index }) => setLightboxIndex(index) }}
+      />
+    )}
 
     {itemXoaAnhPhu && (
       <div
