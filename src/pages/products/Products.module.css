@@ -359,10 +359,15 @@
   transition: background 0.2s, border-color 0.2s, color 0.2s;
 }
 
-.btnAction:hover {
+.btnAction:hover:not(:disabled) {
   background: #f1f5f9;
   border-color: #0f3460;
   color: #0f3460;
+}
+
+.btnAction:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .btnAction svg {

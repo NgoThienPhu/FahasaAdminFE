@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { FiImage, FiPlus, FiX, FiCheck, FiTrash2 } from 'react-icons/fi'
 import Lightbox from 'yet-another-react-lightbox'
 import 'yet-another-react-lightbox/styles.css'
@@ -49,6 +49,63 @@ function layDanhSachBookImageTuResponse(res: unknown): BookImage[] {
 interface SavedSecondaryImage {
   id: string
   url: string
+}
+
+/** Ảnh lazy với placeholder loading */
+function LazyImage({
+  src,
+  alt,
+  className,
+  onError,
+  loading = 'lazy',
+}: {
+  src: string | undefined
+  alt: string
+  className: string
+  onError?: (e: React.SyntheticEvent<HTMLImageElement>) => void
+  loading?: 'lazy' | 'eager'
+}) {
+  const [loaded, setLoaded] = useState(false)
+  const imgRef = useRef<HTMLImageElement | null>(null)
+
+  useEffect(() => {
+    if (src) {
+      setLoaded(false)
+      queueMicrotask(() => {
+        if (imgRef.current?.complete) setLoaded(true)
+      })
+    }
+  }, [src])
+
+  const setRef = (el: HTMLImageElement | null) => {
+    imgRef.current = el
+    if (el?.complete) setLoaded(true)
+  }
+
+  const handleLoad = () => setLoaded(true)
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    setLoaded(true)
+    onError?.(e)
+  }
+
+  return (
+    <div className={styles.lazyImgWrap}>
+      {!loaded && (
+        <div className={styles.lazyImgLoading} aria-hidden>
+          <span className={styles.lazyImgSpinner} />
+        </div>
+      )}
+      <img
+        ref={setRef}
+        src={src}
+        alt={alt}
+        className={`${className} ${loaded ? styles.lazyImgLoaded : ''}`}
+        loading={loading}
+        onLoad={handleLoad}
+        onError={handleError}
+      />
+    </div>
+  )
 }
 
 export interface BookImagesProps {
@@ -358,11 +415,12 @@ export function BookImages({
             onKeyDown={(e) => e.key === 'Enter' && moLightbox(0)}
             aria-label="Xem ảnh bìa phóng to"
           >
-            <img
+            <LazyImage
               src={urlHienThiBia ?? undefined}
               alt={`Bìa: ${bookTitle}`}
               className={styles.coverImg}
               onError={() => setLoiHienThiAnhBia(true)}
+              loading="eager"
             />
           </div>
         )}
@@ -402,13 +460,8 @@ export function BookImages({
       </div>
 
       <section className={styles.extraSection} aria-label="Ảnh phụ">
-        <div
-          className={
-            isEditing && anhPhuCoThayDoi
-              ? `${styles.extraSectionHeader} ${styles.extraSectionHeaderTwoRows}`
-              : styles.extraSectionHeader
-          }
-        >
+        <div className={styles.extraSectionHeader}>
+          {/* Hàng 1: tiêu đề + số ảnh (căn phải) */}
           <div className={styles.extraSectionFirstRow}>
             <div className={styles.extraSectionTitleRow}>
               <FiImage className={styles.extraSectionIcon} aria-hidden />
@@ -417,9 +470,12 @@ export function BookImages({
             {isEditing && (
               <span className={styles.extraSectionCount}>{soAnhPhuHienTai} / {SO_ANH_PHU_TOI_DA} Ảnh</span>
             )}
-            {isEditing && !anhPhuCoThayDoi && (
+          </div>
+          {/* Hàng 2: nút Thêm ảnh phụ + Lưu ảnh phụ (cùng một hàng, dưới) */}
+          {isEditing && (
+            <div className={styles.extraSectionActionsRow}>
               <div className={styles.extraSectionActions}>
-                <label className={daDuAnhPhu || dangUploadHinhAnh ? `${styles.extraAddHeader} ${styles.extraAddHeaderDisabled}` : styles.extraAddHeader}>
+                <label className={daDuAnhPhu || dangUploadHinhAnh ? `${styles.extraAddHeader} ${styles.extraAddHeaderDisabled}` : classNutThem}>
                   <input
                     type="file"
                     accept="image/*"
@@ -432,25 +488,7 @@ export function BookImages({
                   <FiPlus className={styles.extraAddHeaderIcon} aria-hidden />
                   <span>Thêm ảnh</span>
                 </label>
-              </div>
-            )}
-          </div>
-            {isEditing && anhPhuCoThayDoi && (
-              <div className={styles.extraSectionActionsRow}>
-                <div className={styles.extraSectionActions}>
-                  <label className={daDuAnhPhu || dangUploadHinhAnh ? `${styles.extraAddHeader} ${styles.extraAddHeaderDisabled}` : classNutThem}>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={themAnhPhu}
-                      className={styles.fileInput}
-                      aria-label="Thêm ảnh phụ"
-                      disabled={daDuAnhPhu || dangUploadHinhAnh}
-                    />
-                    <FiPlus className={styles.extraAddHeaderIcon} aria-hidden />
-                    <span>Thêm ảnh</span>
-                  </label>
+                {anhPhuCoThayDoi && (
                   <button
                     type="button"
                     className={styles.extraSectionSave}
@@ -459,9 +497,10 @@ export function BookImages({
                   >
                     {dangTaiAnhPhu ? 'Đang lưu…' : 'Lưu ảnh phụ'}
                   </button>
-                </div>
+                )}
               </div>
-            )}
+            </div>
+          )}
         </div>
 
         {isEditing ? (
@@ -476,7 +515,7 @@ export function BookImages({
                       return (
                       <div key={`da-luu-${item.id}`} className={`${styles.extraThumbWrap} ${styles.extraThumbWrapHoverRemove}`}>
                         <div className={styles.extraThumbImgWrap} onClick={() => moLightbox(slideIndex)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && moLightbox(slideIndex)} aria-label={`Xem ảnh ${index + 1}`}>
-                          <img src={item.url} alt={`Ảnh đã lưu ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
+                          <LazyImage src={item.url} alt={`Ảnh đã lưu ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
                         </div>
                         <button
                           type="button"
@@ -506,7 +545,7 @@ export function BookImages({
                     return (
                     <div key={`cho-upload-${index}`} className={styles.extraThumbWrap}>
                       <div className={styles.extraThumbImgWrap} onClick={() => moLightbox(slideIndex)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && moLightbox(slideIndex)} aria-label={`Xem ảnh chờ upload ${index + 1}`}>
-                        <img src={url} alt={`Ảnh chờ upload ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
+                        <LazyImage src={url} alt={`Ảnh chờ upload ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} loading="eager" />
                       </div>
                       <button
                         type="button"
@@ -532,7 +571,7 @@ export function BookImages({
                 const slideIndex = (urlHienThiBia ? 1 : 0) + index
                 return (
                 <div key={`xem-${index}`} className={styles.extraThumbWrapView} onClick={() => moLightbox(slideIndex)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && moLightbox(slideIndex)} aria-label={`Xem ảnh phụ ${index + 1}`}>
-                  <img src={url} alt={`Ảnh phụ ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
+                  <LazyImage src={url} alt={`Ảnh phụ ${index + 1}`} className={styles.extraThumbImg} onError={hienThiAnhLoi} />
                 </div>
                 );
               })}

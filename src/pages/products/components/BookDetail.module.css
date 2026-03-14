@@ -333,6 +333,30 @@
   font-weight: 500;
 }
 
+/* ---- Thẻ tóm tắt ---- */
+.detailSummaryCard {
+  flex: 0 0 auto;
+  min-height: auto;
+  display: flex;
+  flex-direction: column;
+  background: #fafbfc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: visible;
+}
+
+.detailSummaryBody {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow-y: visible;
+  padding: 1rem 1.25rem 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: #1e293b;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
 /* ---- Thẻ mô tả ---- */
 .detailDescriptionCard {
   flex: 0 0 auto;

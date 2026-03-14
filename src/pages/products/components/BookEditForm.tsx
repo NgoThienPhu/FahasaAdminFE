@@ -17,6 +17,7 @@ import styles from './BookEditForm.module.css'
 
 export type EditFormData = {
   title: string
+  summary: string
   description: string
   author: string
   publisher: string
@@ -28,6 +29,7 @@ export type EditFormData = {
 export interface BookEditFormBook {
   id: string
   title?: string
+  summary?: string
   description?: string
   author?: string
   publisher?: string
@@ -53,6 +55,7 @@ export interface BookEditFormProps {
 function validate(form: EditFormData): Record<string, string> {
   const err: Record<string, string> = {}
   if (!form.title?.trim()) err.title = 'Tiêu đề sách không được để trống'
+  if (!form.summary?.trim()) err.summary = 'Tóm tắt không được để trống'
   if (!form.description?.trim()) err.description = 'Mô tả sách không được để trống'
   if (!form.author?.trim()) err.author = 'Tên tác giả không được để trống'
   if (!form.publisher?.trim()) err.publisher = 'Tên nhà cung cấp không được để trống'
@@ -72,6 +75,7 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
 
   const [form, setForm] = useState<EditFormData>({
     title: '',
+    summary: '',
     description: '',
     author: '',
     publisher: '',
@@ -89,6 +93,7 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
     const ngay = book.publishDate ? book.publishDate.slice(0, 10) : ''
     setForm({
       title: book.title ?? '',
+      summary: book.summary ?? '',
       description: book.description ?? '',
       author: book.author ?? '',
       publisher: book.publisher ?? '',
@@ -102,6 +107,7 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
   const ngayGoc = book.publishDate ? book.publishDate.slice(0, 10) : ''
   const formCoThayDoi =
     form.title !== (book.title ?? '').trim() ||
+    (form.summary ?? '').trim() !== (book.summary ?? '').trim() ||
     (form.description ?? '').trim() !== (book.description ?? '').trim() ||
     form.author !== (book.author ?? '').trim() ||
     form.publisher !== (book.publisher ?? '').trim() ||
@@ -125,6 +131,7 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
     bookApi
       .updateBook(book.id, {
         title: form.title.trim(),
+        summary: form.summary.trim(),
         description: form.description.trim(),
         author: form.author.trim(),
         publisher: form.publisher.trim(),
@@ -153,6 +160,7 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
   return (
     <form onSubmit={xuLyLuu} className={styles.editForm}>
       <div className={styles.editFormBody}>
+        {/* 1. Thông tin cơ bản: định danh sách */}
         <section className={`${styles.formSection} ${styles.formSectionBasic}`}>
           <h3 className={styles.formSectionTitleBasic}>
             <FiBook className={styles.formSectionTitleIcon} aria-hidden />
@@ -190,9 +198,29 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
               />
               {loi.author && <span className={styles.formError}>{loi.author}</span>}
             </div>
+            <div className={styles.formField}>
+              <label htmlFor="edit-categoryId" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
+                <FiTag className={styles.formLabelIcon} aria-hidden />
+                Danh mục <span className={styles.required}>*</span>
+              </label>
+              <select
+                id="edit-categoryId"
+                className={styles.formSelect}
+                value={form.categoryId}
+                onChange={(e) => capNhatTruong('categoryId', e.target.value)}
+                disabled={dangGui}
+              >
+                <option value="">Chọn danh mục</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              {loi.categoryId && <span className={styles.formError}>{loi.categoryId}</span>}
+            </div>
           </div>
         </section>
 
+        {/* 2. Thông tin xuất bản (luôn sau thông tin cơ bản) */}
         <section className={`${styles.formSection} ${styles.formSectionPublish}`}>
           <h3 className={styles.formSectionTitleCard}>
             <FiPackage className={styles.formSectionTitleIcon} aria-hidden />
@@ -232,25 +260,6 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
               {loi.isbn && <span className={styles.formError}>{loi.isbn}</span>}
             </div>
             <div className={styles.formField}>
-              <label htmlFor="edit-categoryId" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
-                <FiTag className={styles.formLabelIcon} aria-hidden />
-                Danh mục <span className={styles.required}>*</span>
-              </label>
-              <select
-                id="edit-categoryId"
-                className={styles.formSelect}
-                value={form.categoryId}
-                onChange={(e) => capNhatTruong('categoryId', e.target.value)}
-                disabled={dangGui}
-              >
-                <option value="">Chọn danh mục</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              {loi.categoryId && <span className={styles.formError}>{loi.categoryId}</span>}
-            </div>
-            <div className={styles.formField}>
               <label htmlFor="edit-publishDate" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
                 <FiCalendar className={styles.formLabelIcon} aria-hidden />
                 Ngày phát hành <span className={styles.required}>*</span>
@@ -265,6 +274,29 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
               />
               {loi.publishDate && <span className={styles.formError}>{loi.publishDate}</span>}
             </div>
+          </div>
+        </section>
+
+        {/* 3. Nội dung: tóm tắt + mô tả */}
+        <section className={`${styles.formSection} ${styles.formSectionSummary}`}>
+          <h3 className={styles.formSectionTitleCard}>
+            <FiFileText className={styles.formSectionTitleIcon} aria-hidden />
+            Tóm tắt <span className={styles.required}>*</span>
+          </h3>
+          <div className={styles.formField}>
+            <label htmlFor="edit-summary" className={styles.formLabel}>
+              Tóm tắt ngắn về nội dung sách
+            </label>
+            <textarea
+              id="edit-summary"
+              className={styles.formTextarea}
+              value={form.summary}
+              onChange={(e) => capNhatTruong('summary', e.target.value)}
+              placeholder="Nhập tóm tắt (văn bản thuần)"
+              rows={4}
+              disabled={dangGui}
+            />
+            {loi.summary && <span className={styles.formError}>{loi.summary}</span>}
           </div>
         </section>
 

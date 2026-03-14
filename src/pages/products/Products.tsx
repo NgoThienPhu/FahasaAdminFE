@@ -35,6 +35,7 @@ type SortOrder = 'asc' | 'desc'
 /** Form tạo sách (theo CreateBookRequestDTO) */
 type CreateBookFormData = {
   title: string
+  summary: string
   description: string
   author: string
   publisher: string
@@ -46,6 +47,7 @@ type CreateBookFormData = {
 
 const INIT_CREATE_FORM: CreateBookFormData = {
   title: '',
+  summary: '',
   description: '',
   author: '',
   publisher: '',
@@ -157,6 +159,8 @@ function Products() {
     Partial<Record<keyof CreateBookFormData, string>>
   >({})
   const [createSubmitting, setCreateSubmitting] = useState(false)
+  const [bookToDelete, setBookToDelete] = useState<Book | null>(null)
+  const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
 
   useEffect(() => {
     setBooksLoading(true)
@@ -232,9 +236,26 @@ function Products() {
     setCurrentPage(1)
   }
 
+  const handleConfirmDelete = async () => {
+    if (!bookToDelete) return
+    setDeletingBookId(bookToDelete.id)
+    try {
+      await bookApi.deleteBook(bookToDelete.id)
+      setRemoteBooks((prev) => prev.filter((b) => b.id !== bookToDelete.id))
+      addNotification('success', `Đã xóa sách "${bookToDelete.title}".`)
+      setBookToDelete(null)
+    } catch (err: unknown) {
+      const msg = (err as { message?: string; error?: string })?.message ?? (err as { message?: string; error?: string })?.error ?? 'Xóa sách thất bại.'
+      addNotification('error', msg)
+    } finally {
+      setDeletingBookId(null)
+    }
+  }
+
   const validateCreateForm = (data: CreateBookFormData): Partial<Record<keyof CreateBookFormData, string>> => {
     const err: Partial<Record<keyof CreateBookFormData, string>> = {}
     if (!data.title?.trim()) err.title = 'Tiêu đề sách không được để trống'
+    if (!data.summary?.trim()) err.summary = 'Tóm tắt không được để trống'
     const descText = data.description?.replace(/<[^>]+>/g, '').trim() ?? ''
     if (!descText) err.description = 'Mô tả sách không được để trống'
     if (!data.author?.trim()) err.author = 'Tên tác giả không được để trống'
@@ -263,6 +284,7 @@ function Products() {
     bookApi
       .createBook({
         title: createForm.title.trim(),
+        summary: createForm.summary.trim(),
         description: createForm.description.trim(),
         author: createForm.author.trim(),
         publisher: createForm.publisher.trim(),
@@ -425,7 +447,8 @@ function Products() {
                             className={styles.btnAction}
                             title="Xóa"
                             aria-label={`Xóa ${book.title}`}
-                            onClick={() => addNotification('info', `Xóa sách: ${book.title} – API sẽ bổ sung.`)}
+                            disabled={deletingBookId === book.id}
+                            onClick={() => setBookToDelete(book)}
                           >
                             <FiTrash2 aria-hidden />
                           </button>
@@ -504,6 +527,7 @@ function Products() {
             </div>
             <form onSubmit={handleCreateSubmit} className={styles.form}>
               <div className={styles.formBody}>
+                {/* 1. Thông tin cơ bản: định danh sách */}
                 <section className={`${styles.formSection} ${styles.formSectionBasic}`}>
                   <h3 className={styles.formSectionTitleBasic}>
                     <FiBook className={styles.formSectionTitleIcon} aria-hidden />
@@ -551,9 +575,36 @@ function Products() {
                         <span className={styles.fieldError}>{createFormErrors.author}</span>
                       )}
                     </div>
+                    <div className={styles.field}>
+                      <label htmlFor="create-categoryId" className={`${styles.label} ${styles.labelWithIcon}`}>
+                        <FiTag className={styles.labelIcon} aria-hidden />
+                        Danh mục <span className={styles.required}>*</span>
+                      </label>
+                      <select
+                        id="create-categoryId"
+                        className={styles.select}
+                        value={createForm.categoryId}
+                        onChange={(e) => {
+                          setCreateForm((f) => ({ ...f, categoryId: e.target.value }))
+                          clearCreateFormError('categoryId')
+                        }}
+                        disabled={createSubmitting}
+                      >
+                        <option value="">Chọn danh mục</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      {createFormErrors.categoryId && (
+                        <span className={styles.fieldError}>{createFormErrors.categoryId}</span>
+                      )}
+                    </div>
                   </div>
                 </section>
 
+                {/* 2. Thông tin xuất bản (luôn sau thông tin cơ bản) */}
                 <section className={`${styles.formSection} ${styles.formSectionPublish}`}>
                   <h3 className={styles.formSectionTitleCard}>
                     <FiPackage className={styles.formSectionTitleIcon} aria-hidden />
@@ -603,32 +654,6 @@ function Products() {
                       )}
                     </div>
                     <div className={styles.field}>
-                      <label htmlFor="create-categoryId" className={`${styles.label} ${styles.labelWithIcon}`}>
-                        <FiTag className={styles.labelIcon} aria-hidden />
-                        Danh mục <span className={styles.required}>*</span>
-                      </label>
-                      <select
-                        id="create-categoryId"
-                        className={styles.select}
-                        value={createForm.categoryId}
-                        onChange={(e) => {
-                          setCreateForm((f) => ({ ...f, categoryId: e.target.value }))
-                          clearCreateFormError('categoryId')
-                        }}
-                        disabled={createSubmitting}
-                      >
-                        <option value="">Chọn danh mục</option>
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                      {createFormErrors.categoryId && (
-                        <span className={styles.fieldError}>{createFormErrors.categoryId}</span>
-                      )}
-                    </div>
-                    <div className={styles.field}>
                       <label htmlFor="create-publishDate" className={`${styles.label} ${styles.labelWithIcon}`}>
                         <FiCalendar className={styles.labelIcon} aria-hidden />
                         Ngày phát hành <span className={styles.required}>*</span>
@@ -673,6 +698,34 @@ function Products() {
                   </div>
                 </section>
 
+                {/* 3. Nội dung: tóm tắt + mô tả */}
+                <section className={`${styles.formSection} ${styles.formSectionDescription}`}>
+                  <h3 className={styles.formSectionTitleCard}>
+                    <FiFileText className={styles.formSectionTitleIcon} aria-hidden />
+                    Tóm tắt <span className={styles.required}>*</span>
+                  </h3>
+                  <div className={styles.field}>
+                    <label htmlFor="create-summary" className={styles.label}>
+                      Tóm tắt ngắn về nội dung sách
+                    </label>
+                    <textarea
+                      id="create-summary"
+                      className={styles.textarea}
+                      value={createForm.summary}
+                      onChange={(e) => {
+                        setCreateForm((f) => ({ ...f, summary: e.target.value }))
+                        clearCreateFormError('summary')
+                      }}
+                      placeholder="Nhập tóm tắt (văn bản thuần)"
+                      rows={4}
+                      disabled={createSubmitting}
+                    />
+                    {createFormErrors.summary && (
+                      <span className={styles.fieldError}>{createFormErrors.summary}</span>
+                    )}
+                  </div>
+                </section>
+
                 <section className={`${styles.formSection} ${styles.formSectionDescription}`}>
                   <h3 className={styles.formSectionTitleCard}>
                     <FiFileText className={styles.formSectionTitleIcon} aria-hidden />
@@ -709,6 +762,46 @@ function Products() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {bookToDelete && (
+        <div
+          className={styles.modalOverlay}
+          onClick={() => !deletingBookId && setBookToDelete(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-book-title"
+        >
+          <div className={styles.confirmModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.confirmModalIcon} aria-hidden>
+              <FiTrash2 />
+            </div>
+            <h2 id="delete-book-title" className={styles.confirmModalTitle}>
+              Xóa sách?
+            </h2>
+            <p className={styles.confirmModalMessage}>
+              Bạn có chắc muốn xóa sách <strong>{bookToDelete.title}</strong>? Hành động không thể hoàn tác.
+            </p>
+            <div className={styles.confirmModalActions}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => !deletingBookId && setBookToDelete(null)}
+                disabled={!!deletingBookId}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className={styles.btnDanger}
+                onClick={handleConfirmDelete}
+                disabled={!!deletingBookId}
+              >
+                {deletingBookId ? 'Đang xóa…' : 'Xóa'}
+              </button>
+            </div>
           </div>
         </div>
       )}

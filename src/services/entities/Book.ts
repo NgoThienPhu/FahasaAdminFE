@@ -4,6 +4,7 @@ import type { Price } from "./Price";
 
 export interface Book extends BaseEntity {
     title: string;
+    summary?: string;
     description: string;
     author: string;
     publisher: string;

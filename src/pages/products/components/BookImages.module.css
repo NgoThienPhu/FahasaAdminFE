@@ -24,6 +24,50 @@
   border: 1px solid #e2e8f0;
 }
 
+/* ---- Lazy image + loading ---- */
+.lazyImgWrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+}
+
+.lazyImgLoading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  z-index: 1;
+}
+
+.lazyImgSpinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #cbd5e1;
+  border-top-color: #0f3460;
+  border-radius: 50%;
+  animation: lazyImgSpin 0.7s linear infinite;
+}
+
+@keyframes lazyImgSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lazyImgWrap img {
+  position: relative;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.lazyImgWrap img.lazyImgLoaded {
+  opacity: 1;
+}
+
 .coverImgWrap {
   display: block;
   width: 100%;
@@ -270,6 +314,7 @@
 .extraSectionFirstRow {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
@@ -279,6 +324,7 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  min-width: 0;
 }
 
 .extraSectionCount {
@@ -293,9 +339,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 .extraSectionActionsRow {

@@ -177,7 +177,7 @@ export default function BookDetail() {
                       )}
                     </header>
 
-                    <section className={styles.detailInfoCard} aria-label="Thông tin sách">
+                    <section className={styles.detailInfoCard} aria-label="Thông tin xuất bản">
                       <div className={styles.detailMeta}>
                         <div className={styles.metaItem}>
                           <span className={styles.metaLabel}><FiTag aria-hidden /> Thể loại</span>
@@ -203,6 +203,15 @@ export default function BookDetail() {
                         </div>
                       </div>
                     </section>
+
+                    {book.summary != null && book.summary.trim() !== '' && (
+                      <section className={styles.detailSummaryCard} aria-label="Tóm tắt">
+                        <h2 className={styles.detailDescriptionTitle}>Tóm tắt</h2>
+                        <div className={styles.detailSummaryBody}>
+                          {book.summary.trim()}
+                        </div>
+                      </section>
+                    )}
 
                     <section className={styles.detailDescriptionCard} aria-label="Mô tả">
                       <h2 className={styles.detailDescriptionTitle}>Mô tả</h2>

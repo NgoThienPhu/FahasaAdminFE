@@ -11,6 +11,7 @@ interface GetBooksParams {
 
 interface CreateBookParams {
   title: string
+  summary: string
   description: string
   author: string
   publisher: string
@@ -22,6 +23,7 @@ interface CreateBookParams {
 
 interface UpdateBookParams {
   title: string
+  summary: string
   description: string
   author: string
   publisher: string
@@ -49,6 +51,10 @@ const bookApi = {
 
   updateBook(id: string, params: UpdateBookParams): Promise<APISuccessResponse<Book>> {
     return apiClient.put(`/books/${id}`, params)
+  },
+
+  deleteBook(id: string): Promise<APISuccessResponse<void>> {
+    return apiClient.delete(`/books/${id}`)
   },
 }
 
