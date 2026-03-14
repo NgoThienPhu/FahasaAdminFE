@@ -23,7 +23,6 @@ function chuyenThanhUrlDayDu(url: string | undefined): string | undefined {
   }
 }
 
-/** Lấy url từ object API (BookImage có trường url) */
 function layUrlTuBookImage(img: unknown): string | undefined {
   if (!img || typeof img !== 'object') return undefined
   const o = img as BookImage
@@ -31,7 +30,6 @@ function layUrlTuBookImage(img: unknown): string | undefined {
   return url
 }
 
-/** Trích danh sách BookImage từ response API (data / data.content / mảng) */
 function layDanhSachBookImageTuResponse(res: unknown): BookImage[] {
   const obj = res && typeof res === 'object' ? (res as Record<string, unknown>) : {}
   const data = obj?.data
@@ -45,13 +43,11 @@ function layDanhSachBookImageTuResponse(res: unknown): BookImage[] {
   return []
 }
 
-/** Một ảnh phụ đã lưu trên server (có id để xóa) */
 interface SavedSecondaryImage {
   id: string
   url: string
 }
 
-/** Ảnh lazy với placeholder loading */
 function LazyImage({
   src,
   alt,
@@ -116,9 +112,7 @@ export interface BookImagesProps {
   onPrimaryImageSaved?: (url: string) => void
   onExtraImagesChange: (urls: string[]) => void
   onExtraImagesSaved?: (urls: string[]) => void
-  /** Gọi khi bắt đầu/kết thúc upload ảnh phụ để parent có thể disable các nút khác */
   onExtraImagesUploading?: (uploading: boolean) => void
-  /** Gọi khi bắt đầu/kết thúc upload ảnh chính (bìa) để parent có thể disable các nút khác */
   onPrimaryImageUploading?: (uploading: boolean) => void
 }
 
@@ -146,7 +140,6 @@ export function BookImages({
   const [dangXoaAnhPhu, setDangXoaAnhPhu] = useState(false)
   const [itemXoaAnhPhu, setItemXoaAnhPhu] = useState<SavedSecondaryImage | null>(null)
 
-  /** Preview URLs cho ảnh phụ đang chờ upload */
   const [pendingPreviewUrls, setPendingPreviewUrls] = useState<string[]>([])
   useEffect(() => {
     if (pendingSecondaryFiles.length === 0) {
@@ -239,7 +232,6 @@ export function BookImages({
     onPrimaryImageUploading?.(dangTaiAnhBia)
   }, [dangTaiAnhBia, onPrimaryImageUploading])
 
-  /** Đang upload bất kỳ ảnh nào (bìa hoặc phụ) → disable các nút có thể ảnh hưởng */
   const dangUploadHinhAnh = dangTaiAnhBia || dangTaiAnhPhu
 
   useEffect(() => {
@@ -253,7 +245,6 @@ export function BookImages({
     savedExtraImageUrls.some((u, i) => u !== danhSachAnhPhu[i])
   const soAnhPhuHienTai = savedSecondaryImages.length + pendingSecondaryFiles.length
 
-  /** Slides cho lightbox: ảnh bìa (nếu có) + toàn bộ ảnh phụ (đã lưu + chờ upload) */
   const lightboxSlides = useMemo(() => {
     const s: { src: string; alt?: string }[] = []
     if (urlHienThiBia) s.push({ src: urlHienThiBia, alt: `Bìa: ${bookTitle}` })
@@ -461,7 +452,6 @@ export function BookImages({
 
       <section className={styles.extraSection} aria-label="Ảnh phụ">
         <div className={styles.extraSectionHeader}>
-          {/* Hàng 1: tiêu đề + số ảnh (căn phải) */}
           <div className={styles.extraSectionFirstRow}>
             <div className={styles.extraSectionTitleRow}>
               <FiImage className={styles.extraSectionIcon} aria-hidden />
@@ -471,7 +461,6 @@ export function BookImages({
               <span className={styles.extraSectionCount}>{soAnhPhuHienTai} / {SO_ANH_PHU_TOI_DA} Ảnh</span>
             )}
           </div>
-          {/* Hàng 2: nút Thêm ảnh phụ + Lưu ảnh phụ (cùng một hàng, dưới) */}
           {isEditing && (
             <div className={styles.extraSectionActionsRow}>
               <div className={styles.extraSectionActions}>

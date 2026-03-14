@@ -1,4 +1,3 @@
-/* ========== Page ========== */
 .page {
   margin: 0;
   margin-top: 0;
@@ -10,7 +9,6 @@
   flex-direction: column;
 }
 
-/* ========== Header ========== */
 .header {
   flex-shrink: 0;
   margin-bottom: 1.25rem;
@@ -81,7 +79,6 @@
   flex-shrink: 0;
 }
 
-/* ========== Card ========== */
 .card {
   flex: 1;
   min-height: 0;
@@ -94,7 +91,6 @@
   overflow: hidden;
 }
 
-/* ========== Hero (cover + detail) ========== */
 .hero {
   display: flex;
   gap: 2rem;
@@ -106,7 +102,6 @@
   background: #fff;
 }
 
-/* ---- Detail column ---- */
 .detailCol {
   flex: 1;
   min-width: 0;
@@ -272,7 +267,6 @@
   opacity: 0.9;
 }
 
-/* ---- Thẻ thông tin (Thể loại, ISBN, ...) ---- */
 .detailInfoCard {
   flex-shrink: 0;
   background: #fafbfc;
@@ -333,7 +327,6 @@
   font-weight: 500;
 }
 
-/* ---- Thẻ tóm tắt ---- */
 .detailSummaryCard {
   flex: 0 0 auto;
   min-height: auto;
@@ -357,7 +350,6 @@
   white-space: pre-wrap;
 }
 
-/* ---- Thẻ mô tả ---- */
 .detailDescriptionCard {
   flex: 0 0 auto;
   min-height: auto;
@@ -495,7 +487,6 @@
   line-height: 1.4;
 }
 
-/* ========== Buttons ========== */
 .btnPrimary {
   display: inline-flex;
   align-items: center;
@@ -555,7 +546,6 @@
   height: 17px;
 }
 
-/* ========== Error ========== */
 .error {
   color: #dc2626;
   margin: 0 0 1rem;

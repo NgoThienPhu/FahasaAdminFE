@@ -32,7 +32,6 @@ const PAGE_SIZE = 10
 type SortField = 'title' | 'author' | 'publisher' | 'category' | 'createdAt'
 type SortOrder = 'asc' | 'desc'
 
-/** Form tạo sách (theo CreateBookRequestDTO) */
 type CreateBookFormData = {
   title: string
   summary: string
@@ -527,7 +526,6 @@ function Products() {
             </div>
             <form onSubmit={handleCreateSubmit} className={styles.form}>
               <div className={styles.formBody}>
-                {/* 1. Thông tin cơ bản: định danh sách */}
                 <section className={`${styles.formSection} ${styles.formSectionBasic}`}>
                   <h3 className={styles.formSectionTitleBasic}>
                     <FiBook className={styles.formSectionTitleIcon} aria-hidden />
@@ -604,7 +602,6 @@ function Products() {
                   </div>
                 </section>
 
-                {/* 2. Thông tin xuất bản (luôn sau thông tin cơ bản) */}
                 <section className={`${styles.formSection} ${styles.formSectionPublish}`}>
                   <h3 className={styles.formSectionTitleCard}>
                     <FiPackage className={styles.formSectionTitleIcon} aria-hidden />
@@ -698,7 +695,6 @@ function Products() {
                   </div>
                 </section>
 
-                {/* 3. Nội dung: tóm tắt + mô tả */}
                 <section className={`${styles.formSection} ${styles.formSectionDescription}`}>
                   <h3 className={styles.formSectionTitleCard}>
                     <FiFileText className={styles.formSectionTitleIcon} aria-hidden />

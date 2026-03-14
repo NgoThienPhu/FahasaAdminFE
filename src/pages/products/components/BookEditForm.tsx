@@ -11,7 +11,9 @@ import {
 } from 'react-icons/fi'
 import { useNotification } from '../../../contexts/NotificationContext'
 import type { Category } from '../../../services/entities/Category'
+import type { Book } from '../../../services/entities/Book'
 import bookApi from '../../../services/apis/bookApi'
+import type { APISuccessResponse } from '../../../services/apis/config'
 import { TipTapEditor } from '../../../components/TipTapEditor'
 import styles from './BookEditForm.module.css'
 
@@ -26,18 +28,8 @@ export type EditFormData = {
   publishDate: string
 }
 
-export interface BookEditFormBook {
+export interface BookEditFormBook extends Partial<Book> {
   id: string
-  title?: string
-  summary?: string
-  description?: string
-  author?: string
-  publisher?: string
-  isbn?: string
-  publishDate?: string
-  createdAt?: string
-  category?: { name?: string }
-  categoryName?: string
   coverImageUrl?: string
   extraImageUrls?: string[]
 }
@@ -46,51 +38,56 @@ export interface BookEditFormProps {
   book: BookEditFormBook
   categories: Category[]
   isExtraDirty: boolean
-  /** Khi true (vd. đang upload ảnh phụ), disable Hủy và Lưu thay đổi */
   disableActions?: boolean
   onCancel: () => void
   onSuccess: (updatedBook: BookEditFormBook) => void
 }
 
 function validate(form: EditFormData): Record<string, string> {
-  const err: Record<string, string> = {}
-  if (!form.title?.trim()) err.title = 'Tiêu đề sách không được để trống'
-  if (!form.summary?.trim()) err.summary = 'Tóm tắt không được để trống'
-  if (!form.description?.trim()) err.description = 'Mô tả sách không được để trống'
-  if (!form.author?.trim()) err.author = 'Tên tác giả không được để trống'
-  if (!form.publisher?.trim()) err.publisher = 'Tên nhà cung cấp không được để trống'
-  if (!form.isbn?.trim()) err.isbn = 'ISBN không được để trống'
-  if (!form.categoryId?.trim()) err.categoryId = 'Loại sản phẩm không được để trống'
+  const errors: Record<string, string> = {}
+  if (!form.title?.trim()) errors.title = 'Tiêu đề sách không được để trống'
+  if (!form.summary?.trim()) errors.summary = 'Tóm tắt không được để trống'
+  if (!form.description?.trim()) errors.description = 'Mô tả sách không được để trống'
+  if (!form.author?.trim()) errors.author = 'Tên tác giả không được để trống'
+  if (!form.publisher?.trim()) errors.publisher = 'Tên nhà cung cấp không được để trống'
+  if (!form.isbn?.trim()) errors.isbn = 'ISBN không được để trống'
+  if (!form.categoryId?.trim()) errors.categoryId = 'Loại sản phẩm không được để trống'
   if (!form.publishDate?.trim()) {
-    err.publishDate = 'Ngày phát hành không được để trống'
+    errors.publishDate = 'Ngày phát hành không được để trống'
   } else {
     const d = new Date(form.publishDate)
-    if (d > new Date()) err.publishDate = 'Ngày phát hành phải trong quá khứ hoặc hôm nay'
+    if (d > new Date()) errors.publishDate = 'Ngày phát hành phải trong quá khứ hoặc hôm nay'
   }
-  return err
+  return errors
 }
 
-export function BookEditForm({ book, categories, isExtraDirty, disableActions = false, onCancel, onSuccess }: BookEditFormProps) {
-  const { addNotification } = useNotification()
+const INIT_FORM: EditFormData = {
+  title: '',
+  summary: '',
+  description: '',
+  author: '',
+  publisher: '',
+  isbn: '',
+  categoryId: '',
+  publishDate: '',
+}
 
-  const [form, setForm] = useState<EditFormData>({
-    title: '',
-    summary: '',
-    description: '',
-    author: '',
-    publisher: '',
-    isbn: '',
-    categoryId: '',
-    publishDate: '',
-  })
-  const [loi, setLoi] = useState<Record<string, string>>({})
-  const [dangGui, setDangGui] = useState(false)
+export function BookEditForm({
+  book,
+  categories,
+  disableActions = false,
+  onCancel,
+  onSuccess,
+}: BookEditFormProps) {
+  const { addNotification } = useNotification()
+  const [form, setForm] = useState<EditFormData>(INIT_FORM)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!book) return
-    const tenDanhMuc = book.category?.name ?? ''
-    const idDanhMuc = categories.find((c) => c.name === tenDanhMuc)?.id ?? ''
-    const ngay = book.publishDate ? book.publishDate.slice(0, 10) : ''
+    const categoryId = categories.find((c) => c.name === book.category?.name)?.id ?? ''
+    const publishDate = book.publishDate ? book.publishDate.slice(0, 10) : ''
     setForm({
       title: book.title ?? '',
       summary: book.summary ?? '',
@@ -98,38 +95,38 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
       author: book.author ?? '',
       publisher: book.publisher ?? '',
       isbn: book.isbn ?? '',
-      categoryId: idDanhMuc,
-      publishDate: ngay,
+      categoryId,
+      publishDate,
     })
   }, [book, categories])
 
-  const idDanhMucGoc = categories.find((c) => c.name === book.category?.name)?.id ?? ''
-  const ngayGoc = book.publishDate ? book.publishDate.slice(0, 10) : ''
-  const formCoThayDoi =
+  const initialCategoryId = categories.find((c) => c.name === book.category?.name)?.id ?? ''
+  const initialPublishDate = book.publishDate ? book.publishDate.slice(0, 10) : ''
+
+  const hasFormChanges =
     form.title !== (book.title ?? '').trim() ||
     (form.summary ?? '').trim() !== (book.summary ?? '').trim() ||
     (form.description ?? '').trim() !== (book.description ?? '').trim() ||
     form.author !== (book.author ?? '').trim() ||
     form.publisher !== (book.publisher ?? '').trim() ||
     form.isbn !== (book.isbn ?? '').trim() ||
-    form.categoryId !== idDanhMucGoc ||
-    form.publishDate !== ngayGoc
-  const choPhepLuu = formCoThayDoi
+    form.categoryId !== initialCategoryId ||
+    form.publishDate !== initialPublishDate
 
-  const capNhatTruong = (ten: keyof EditFormData, giaTri: string) => {
-    setForm((f) => ({ ...f, [ten]: giaTri }))
+  const setField = (field: keyof EditFormData, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const xuLyLuu = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const err = validate(form)
-    setLoi(err)
-    if (Object.keys(err).length > 0) return
-    if (!book?.id) return
+    const nextErrors = validate(form)
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+    if (!book.id) return
 
-    setDangGui(true)
-    bookApi
-      .updateBook(book.id, {
+    setSubmitting(true)
+    try {
+      const res = await bookApi.updateBook(book.id, {
         title: form.title.trim(),
         summary: form.summary.trim(),
         description: form.description.trim(),
@@ -139,28 +136,32 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
         categoryId: form.categoryId,
         publishDate: form.publishDate,
       })
-      .then((res: import('../../../services/entities/Book').Book | { data: import('../../../services/entities/Book').Book }) => {
-        const data = (res as { data?: import('../../../services/entities/Book').Book }).data ?? (res as import('../../../services/entities/Book').Book)
-        if (!data || typeof data !== 'object') return
-        const sachMoi = {
-          ...data,
-          coverImageUrl: book.coverImageUrl,
-          extraImageUrls: book.extraImageUrls,
-        }
-        onSuccess(sachMoi)
-        addNotification('success', `Đã cập nhật "${sachMoi.title}".`)
-      })
-      .catch((err: any) => {
-        const msg = err?.message ?? err?.error ?? 'Cập nhật thất bại.'
-        addNotification('error', msg)
-      })
-      .finally(() => setDangGui(false))
+      const apiRes = res as APISuccessResponse<Book>
+      const data = apiRes.data
+      if (!data || typeof data !== 'object') return
+      const updatedBook: BookEditFormBook = {
+        ...data,
+        coverImageUrl: book.coverImageUrl,
+        extraImageUrls: book.extraImageUrls,
+      }
+      onSuccess(updatedBook)
+      addNotification('success', `Đã cập nhật "${updatedBook.title}".`)
+    } catch (err: unknown) {
+      const msg =
+        (err as { message?: string })?.message ??
+        (err as { error?: string })?.error ??
+        'Cập nhật thất bại.'
+      addNotification('error', msg)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
+  const disabled = submitting || disableActions
+
   return (
-    <form onSubmit={xuLyLuu} className={styles.editForm}>
+    <form onSubmit={handleSubmit} className={styles.editForm}>
       <div className={styles.editFormBody}>
-        {/* 1. Thông tin cơ bản: định danh sách */}
         <section className={`${styles.formSection} ${styles.formSectionBasic}`}>
           <h3 className={styles.formSectionTitleBasic}>
             <FiBook className={styles.formSectionTitleIcon} aria-hidden />
@@ -176,11 +177,11 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
                 type="text"
                 className={styles.formInput}
                 value={form.title}
-                onChange={(e) => capNhatTruong('title', e.target.value)}
+                onChange={(e) => setField('title', e.target.value)}
                 placeholder="Nhập tiêu đề sách"
-                disabled={dangGui}
+                disabled={disabled}
               />
-              {loi.title && <span className={styles.formError}>{loi.title}</span>}
+              {errors.title && <span className={styles.formError}>{errors.title}</span>}
             </div>
             <div className={styles.formField}>
               <label htmlFor="edit-author" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
@@ -192,11 +193,11 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
                 type="text"
                 className={styles.formInput}
                 value={form.author}
-                onChange={(e) => capNhatTruong('author', e.target.value)}
+                onChange={(e) => setField('author', e.target.value)}
                 placeholder="Tên tác giả"
-                disabled={dangGui}
+                disabled={disabled}
               />
-              {loi.author && <span className={styles.formError}>{loi.author}</span>}
+              {errors.author && <span className={styles.formError}>{errors.author}</span>}
             </div>
             <div className={styles.formField}>
               <label htmlFor="edit-categoryId" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
@@ -207,20 +208,19 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
                 id="edit-categoryId"
                 className={styles.formSelect}
                 value={form.categoryId}
-                onChange={(e) => capNhatTruong('categoryId', e.target.value)}
-                disabled={dangGui}
+                onChange={(e) => setField('categoryId', e.target.value)}
+                disabled={disabled}
               >
                 <option value="">Chọn danh mục</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
-              {loi.categoryId && <span className={styles.formError}>{loi.categoryId}</span>}
+              {errors.categoryId && <span className={styles.formError}>{errors.categoryId}</span>}
             </div>
           </div>
         </section>
 
-        {/* 2. Thông tin xuất bản (luôn sau thông tin cơ bản) */}
         <section className={`${styles.formSection} ${styles.formSectionPublish}`}>
           <h3 className={styles.formSectionTitleCard}>
             <FiPackage className={styles.formSectionTitleIcon} aria-hidden />
@@ -237,11 +237,11 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
                 type="text"
                 className={styles.formInput}
                 value={form.publisher}
-                onChange={(e) => capNhatTruong('publisher', e.target.value)}
+                onChange={(e) => setField('publisher', e.target.value)}
                 placeholder="Tên nhà xuất bản / cung cấp"
-                disabled={dangGui}
+                disabled={disabled}
               />
-              {loi.publisher && <span className={styles.formError}>{loi.publisher}</span>}
+              {errors.publisher && <span className={styles.formError}>{errors.publisher}</span>}
             </div>
             <div className={styles.formField}>
               <label htmlFor="edit-isbn" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
@@ -253,11 +253,11 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
                 type="text"
                 className={styles.formInput}
                 value={form.isbn}
-                onChange={(e) => capNhatTruong('isbn', e.target.value)}
+                onChange={(e) => setField('isbn', e.target.value)}
                 placeholder="978-604-1-00001-1"
-                disabled={dangGui}
+                disabled={disabled}
               />
-              {loi.isbn && <span className={styles.formError}>{loi.isbn}</span>}
+              {errors.isbn && <span className={styles.formError}>{errors.isbn}</span>}
             </div>
             <div className={styles.formField}>
               <label htmlFor="edit-publishDate" className={`${styles.formLabel} ${styles.formLabelWithIcon}`}>
@@ -269,15 +269,14 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
                 type="date"
                 className={styles.formInput}
                 value={form.publishDate}
-                onChange={(e) => capNhatTruong('publishDate', e.target.value)}
-                disabled={dangGui}
+                onChange={(e) => setField('publishDate', e.target.value)}
+                disabled={disabled}
               />
-              {loi.publishDate && <span className={styles.formError}>{loi.publishDate}</span>}
+              {errors.publishDate && <span className={styles.formError}>{errors.publishDate}</span>}
             </div>
           </div>
         </section>
 
-        {/* 3. Nội dung: tóm tắt + mô tả */}
         <section className={`${styles.formSection} ${styles.formSectionSummary}`}>
           <h3 className={styles.formSectionTitleCard}>
             <FiFileText className={styles.formSectionTitleIcon} aria-hidden />
@@ -291,12 +290,12 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
               id="edit-summary"
               className={styles.formTextarea}
               value={form.summary}
-              onChange={(e) => capNhatTruong('summary', e.target.value)}
+              onChange={(e) => setField('summary', e.target.value)}
               placeholder="Nhập tóm tắt (văn bản thuần)"
               rows={4}
-              disabled={dangGui}
+              disabled={disabled}
             />
-            {loi.summary && <span className={styles.formError}>{loi.summary}</span>}
+            {errors.summary && <span className={styles.formError}>{errors.summary}</span>}
           </div>
         </section>
 
@@ -309,21 +308,21 @@ export function BookEditForm({ book, categories, isExtraDirty, disableActions = 
             <TipTapEditor
               id="edit-description"
               value={form.description}
-              onChange={(html) => capNhatTruong('description', html)}
+              onChange={(html) => setField('description', html)}
               placeholder="Mô tả ngắn (in đậm, in nghiêng, danh sách, link...)"
-              disabled={dangGui}
+              disabled={disabled}
             />
-            {loi.description && <span className={styles.formError}>{loi.description}</span>}
+            {errors.description && <span className={styles.formError}>{errors.description}</span>}
           </div>
         </section>
       </div>
 
       <div className={styles.editFormFooter}>
-        <button type="button" className={styles.formBtnCancel} onClick={onCancel} disabled={dangGui || disableActions}>
+        <button type="button" className={styles.formBtnCancel} onClick={onCancel} disabled={disabled}>
           <FiX aria-hidden /> Hủy
         </button>
-        <button type="submit" className={styles.formBtnSubmit} disabled={dangGui || disableActions || !choPhepLuu}>
-          {dangGui ? 'Đang lưu…' : 'Lưu thay đổi'}
+        <button type="submit" className={styles.formBtnSubmit} disabled={disabled || !hasFormChanges}>
+          {submitting ? 'Đang lưu…' : 'Lưu thay đổi'}
         </button>
       </div>
     </form>
