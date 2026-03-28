@@ -47,38 +47,6 @@
   flex-shrink: 0;
 }
 
-.editBtnHeader {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 1.1rem;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #0f3460;
-  background: #fff;
-  border: 1.5px solid #0f3460;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
-}
-
-.editBtnHeader:hover {
-  color: #fff;
-  background: #0f3460;
-  border-color: #0f3460;
-  box-shadow: 0 2px 8px rgba(15, 52, 96, 0.25);
-}
-
-.editBtnHeader:active {
-  transform: scale(0.98);
-}
-
-.editBtnHeader svg {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
 .card {
   flex: 1;
   min-height: 0;
@@ -89,6 +57,17 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
   overflow: hidden;
+}
+
+.bookPageLoadingWrap {
+  flex: 1;
+  min-height: 18rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  box-sizing: border-box;
 }
 
 .hero {
@@ -103,8 +82,91 @@
 }
 
 .detailCol {
+  position: relative;
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detailColOverlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.detailColOverlay button.editBtnOverlay {
+  pointer-events: auto;
+}
+
+.editBtnOverlay {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  text-decoration: none;
+  box-sizing: border-box;
+  line-height: 1.2;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.editBtnOverlay:hover {
+  color: #0f3460;
+  background: #fff;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+}
+
+.editBtnOverlay:active {
+  background: #f8fafc;
+}
+
+.editBtnOverlay svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.detailViewWithOverlay .detailHead {
+  padding-right: 5.75rem;
+}
+
+.detailFormOverlayWrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: 2.35rem;
+  box-sizing: border-box;
+}
+
+.detailCol > .detailViewWrap,
+.detailCol > .detailFormOverlayWrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.detailFormOverlayWrap > form {
+  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;

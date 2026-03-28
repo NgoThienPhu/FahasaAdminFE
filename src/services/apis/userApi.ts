@@ -1,5 +1,6 @@
 import apiClient, { type APIPaginationSuccessResponse, type APISuccessResponse } from './config'
 import type { UserMember } from '../entities/User'
+import type { UserAddress } from '../entities/UserAddress'
 
 interface GetUsersParams {
   page: number
@@ -28,6 +29,10 @@ const userApi = {
 
   resetPassword(id: string): Promise<APISuccessResponse<null>> {
     return apiClient.post(`/accounts/${id}/reset-password`)
+  },
+
+  getAccountAddresses(id: string): Promise<APISuccessResponse<UserAddress[]>> {
+    return apiClient.get(`/accounts/${id}/addresses`)
   },
 }
 

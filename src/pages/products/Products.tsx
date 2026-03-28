@@ -9,6 +9,7 @@ import {
   FiChevronDown,
   FiSearch,
   FiEye,
+  FiEdit2,
   FiTrash2,
   FiX,
   FiBook,
@@ -21,10 +22,11 @@ import {
 import { useNotification } from '../../contexts/NotificationContext'
 import type { Book } from '../../services/entities/Book'
 import type { Category } from '../../services/entities/Category'
-import bookApi from '../../services/apis/bookApi'
+import bookApi from '../../services/apis/BookApi'
 import categoryApi from '../../services/apis/CategoryApi'
 import { TipTapEditor } from '../../components/TipTapEditor'
 import Loading from '../../components/Loading/Loading'
+import { productDetailPath, productEditPath } from '../../layouts/DashboardLayout'
 import styles from './Products.module.css'
 
 const PAGE_SIZE = 10
@@ -437,9 +439,18 @@ function Products() {
                             className={styles.btnAction}
                             title="Xem chi tiết"
                             aria-label={`Xem chi tiết ${book.title}`}
-                            onClick={() => navigate(`/products/${book.id}`, { state: { book } })}
+                            onClick={() => navigate(productDetailPath(book.id), { state: { book } })}
                           >
                             <FiEye aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.btnAction}
+                            title="Chỉnh sửa"
+                            aria-label={`Chỉnh sửa ${book.title}`}
+                            onClick={() => navigate(productEditPath(book.id))}
+                          >
+                            <FiEdit2 aria-hidden />
                           </button>
                           <button
                             type="button"
@@ -587,8 +598,9 @@ function Products() {
                           clearCreateFormError('categoryId')
                         }}
                         disabled={createSubmitting}
+                        title="Chọn danh mục sách trong danh sách"
                       >
-                        <option value="">Chọn danh mục</option>
+                        <option value="">— Chọn danh mục —</option>
                         {categories.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.name}
@@ -655,6 +667,9 @@ function Products() {
                         <FiCalendar className={styles.labelIcon} aria-hidden />
                         Ngày phát hành <span className={styles.required}>*</span>
                       </label>
+                      <span id="create-publishDate-hint" className={styles.inputHint}>
+                        Chọn ngày trên lịch — không được là ngày tương lai
+                      </span>
                       <input
                         id="create-publishDate"
                         type="date"
@@ -665,6 +680,8 @@ function Products() {
                           clearCreateFormError('publishDate')
                         }}
                         disabled={createSubmitting}
+                        title="Chọn ngày phát hành trên lịch (bắt buộc)"
+                        aria-describedby="create-publishDate-hint"
                       />
                       {createFormErrors.publishDate && (
                         <span className={styles.fieldError}>{createFormErrors.publishDate}</span>

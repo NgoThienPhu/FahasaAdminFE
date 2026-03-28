@@ -640,6 +640,15 @@
   color: #dc2626;
 }
 
+.inputHint {
+  display: block;
+  margin: -0.1rem 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
 .input,
 .textarea {
   width: 100%;

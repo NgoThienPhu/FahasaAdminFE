@@ -240,7 +240,6 @@
   border-bottom: none;
 }
 
-/* Phân bổ độ rộng cột (tổng 100%), có min-width tránh chèn ép */
 .table .thId,
 .table .tdId {
   width: 5%;
@@ -277,7 +276,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Trạng thái: căn giữa nội dung */
 .table .thStatus,
 .table .tdStatus {
   width: 13%;
@@ -404,7 +402,6 @@
   height: 16px;
 }
 
-/* Detail modal */
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -488,7 +485,6 @@
   height: 20px;
 }
 
-/* Reset password confirm modal */
 .confirmModal {
   background: #fff;
   border-radius: 16px;
@@ -579,7 +575,6 @@
   min-height: 0;
 }
 
-/* Profile block */
 .detailProfile {
   display: flex;
   align-items: center;
@@ -650,7 +645,6 @@
   color: #b91c1c;
 }
 
-/* Sections */
 .detailSection {
   margin-top: 1.25rem;
 }
@@ -733,6 +727,68 @@
   margin-top: 0.25rem;
 }
 
+.addressesLoading,
+.addressesEmpty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #e2e8f0;
+}
+
+.addressList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.addressCard {
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.addressCardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.addressRecipient {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+}
+
+.addressDefaultBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.addressLine {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #334155;
+  line-height: 1.45;
+}
+
 .modalFooter {
   padding: 1.25rem 1.5rem;
   border-top: 1px solid #e2e8f0;
@@ -761,7 +817,6 @@
   transform: scale(0.98);
 }
 
-/* Pagination */
 .pagination {
   flex-shrink: 0;
   display: flex;

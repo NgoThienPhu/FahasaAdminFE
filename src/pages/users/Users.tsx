@@ -15,11 +15,13 @@ import {
   FiMail,
   FiCalendar,
   FiSearch,
+  FiMapPin,
 } from 'react-icons/fi'
 import Loading from '../../components/Loading/Loading'
 import { useNotification } from '../../contexts/NotificationContext'
 import userApi from '../../services/apis/UserApi'
 import type { UserMember } from '../../services/entities/User'
+import { formatUserAddressLine, type UserAddress } from '../../services/entities/UserAddress'
 import styles from './Users.module.css'
 
 const PAGE_SIZE = 10
@@ -164,6 +166,8 @@ function Users() {
   const [searchKeyword, setSearchKeyword] = useState('')
 
   const [detailUser, setDetailUser] = useState<UserListItem | null>(null)
+  const [detailAddresses, setDetailAddresses] = useState<UserAddress[]>([])
+  const [detailAddressesLoading, setDetailAddressesLoading] = useState(false)
   const [resetConfirmUser, setResetConfirmUser] = useState<UserListItem | null>(null)
   const [resetConfirmLoading, setResetConfirmLoading] = useState(false)
   const [lockConfirm, setLockConfirm] = useState<{ user: UserListItem; action: 'lock' | 'unlock' } | null>(null)
@@ -178,8 +182,10 @@ function Users() {
         sortBy: sortField,
         search: searchKeyword || undefined,
       })
-      .then((res: unknown) => {
-        const { list: newList, totalItems: total, totalPages: pages } = parseUserListResponse(res)
+      .then((res) => {
+        const { list: newList, totalItems: total, totalPages: pages } = parseUserListResponse(
+          res as Parameters<typeof parseUserListResponse>[0]
+        )
         setList(newList)
         setTotalItems(total)
         setTotalPages(pages)
@@ -196,6 +202,25 @@ function Users() {
       })
       .finally(() => setLoading(false))
   }, [currentPage, sortField, sortOrder, searchKeyword])
+
+  useEffect(() => {
+    if (!detailUser) {
+      setDetailAddresses([])
+      setDetailAddressesLoading(false)
+      return
+    }
+    setDetailAddressesLoading(true)
+    userApi
+      .getAccountAddresses(detailUser.id)
+      .then((res: unknown) => {
+        const raw = (res as { data?: UserAddress[] }).data
+        setDetailAddresses(Array.isArray(raw) ? raw : [])
+      })
+      .catch(() => {
+        setDetailAddresses([])
+      })
+      .finally(() => setDetailAddressesLoading(false))
+  }, [detailUser?.id])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -432,7 +457,6 @@ function Users() {
         </div>
       </div>
 
-      {/* Modal: Xác nhận đặt lại mật khẩu */}
       {resetConfirmUser && (
         <div
           className={styles.modalOverlay}
@@ -471,7 +495,6 @@ function Users() {
         </div>
       )}
 
-      {/* Modal: Xác nhận khóa / mở khóa */}
       {lockConfirm && (
         <div
           className={styles.modalOverlay}
@@ -519,7 +542,6 @@ function Users() {
         </div>
       )}
 
-      {/* Modal: Chi tiết người dùng */}
       {detailUser && (
         <div
           className={styles.modalOverlay}
@@ -609,6 +631,40 @@ function Users() {
                     <dd>{detailUser.phoneNumber ?? '—'}</dd>
                   </div>
                 </dl>
+              </section>
+
+              <section className={styles.detailSection} aria-labelledby="detail-addresses">
+                <h3 id="detail-addresses" className={styles.detailSectionTitle}>
+                  <FiMapPin aria-hidden /> Địa chỉ đã lưu
+                </h3>
+                {detailAddressesLoading ? (
+                  <p className={styles.addressesLoading}>Đang tải địa chỉ…</p>
+                ) : detailAddresses.length === 0 ? (
+                  <p className={styles.addressesEmpty}>Không có địa chỉ giao hàng đã lưu.</p>
+                ) : (
+                  <ul className={styles.addressList}>
+                    {detailAddresses.map((addr) => {
+                      const line = formatUserAddressLine(addr)
+                      return (
+                        <li key={addr.id} className={styles.addressCard}>
+                          <div className={styles.addressCardHeader}>
+                            {(addr.recipientName?.trim() || addr.phoneNumber?.trim()) && (
+                              <p className={styles.addressRecipient}>
+                                {[addr.recipientName?.trim(), addr.phoneNumber?.trim()]
+                                  .filter(Boolean)
+                                  .join(' · ') || '—'}
+                              </p>
+                            )}
+                            {addr.isDefault === true && (
+                              <span className={styles.addressDefaultBadge}>Mặc định</span>
+                            )}
+                          </div>
+                          {line ? <p className={styles.addressLine}>{line}</p> : null}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
               </section>
 
               <section className={styles.detailSection} aria-labelledby="detail-account">

@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import type { Editor } from '@tiptap/core'
 import {
@@ -230,6 +231,13 @@ export function TipTapEditor({
   const editor = useEditor({
     extensions: [
       StarterKit,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          rel: 'noopener noreferrer',
+          target: '_blank',
+        },
+      }),
       Placeholder.configure({ placeholder }),
     ],
     content: normalizeHtml(value),

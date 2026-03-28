@@ -17,7 +17,9 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addNotification } = useNotification();
   const [user, setUser] = React.useState<UserAdmin | null>(null);
-  const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  const [isLoading, setIsLoading] = React.useState<boolean>(() =>
+    !!localStorage.getItem("accessToken")
+  );
 
   useEffect(() => {
     if (localStorage.getItem("accessToken")) reload();

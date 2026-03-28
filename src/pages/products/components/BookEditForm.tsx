@@ -12,7 +12,7 @@ import {
 import { useNotification } from '../../../contexts/NotificationContext'
 import type { Category } from '../../../services/entities/Category'
 import type { Book } from '../../../services/entities/Book'
-import bookApi from '../../../services/apis/bookApi'
+import bookApi from '../../../services/apis/BookApi'
 import type { APISuccessResponse } from '../../../services/apis/config'
 import { TipTapEditor } from '../../../components/TipTapEditor'
 import styles from './BookEditForm.module.css'
@@ -83,6 +83,11 @@ export function BookEditForm({
   const [form, setForm] = useState<EditFormData>(INIT_FORM)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [descriptionEditorReady, setDescriptionEditorReady] = useState(false)
+
+  useEffect(() => {
+    setDescriptionEditorReady(false)
+  }, [book?.id])
 
   useEffect(() => {
     if (!book) return
@@ -91,13 +96,14 @@ export function BookEditForm({
     setForm({
       title: book.title ?? '',
       summary: book.summary ?? '',
-      description: book.description ?? '',
+      description: typeof book.description === 'string' ? book.description : '',
       author: book.author ?? '',
       publisher: book.publisher ?? '',
       isbn: book.isbn ?? '',
       categoryId,
       publishDate,
     })
+    setDescriptionEditorReady(true)
   }, [book, categories])
 
   const initialCategoryId = categories.find((c) => c.name === book.category?.name)?.id ?? ''
@@ -210,8 +216,9 @@ export function BookEditForm({
                 value={form.categoryId}
                 onChange={(e) => setField('categoryId', e.target.value)}
                 disabled={disabled}
+                title="Chọn danh mục sách trong danh sách"
               >
-                <option value="">Chọn danh mục</option>
+                <option value="">— Chọn danh mục —</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -264,6 +271,9 @@ export function BookEditForm({
                 <FiCalendar className={styles.formLabelIcon} aria-hidden />
                 Ngày phát hành <span className={styles.required}>*</span>
               </label>
+              <span id="edit-publishDate-hint" className={styles.formInputHint}>
+                Chọn ngày trên lịch — không được là ngày tương lai
+              </span>
               <input
                 id="edit-publishDate"
                 type="date"
@@ -271,6 +281,8 @@ export function BookEditForm({
                 value={form.publishDate}
                 onChange={(e) => setField('publishDate', e.target.value)}
                 disabled={disabled}
+                title="Chọn ngày phát hành trên lịch (bắt buộc)"
+                aria-describedby="edit-publishDate-hint"
               />
               {errors.publishDate && <span className={styles.formError}>{errors.publishDate}</span>}
             </div>
@@ -305,13 +317,18 @@ export function BookEditForm({
             Mô tả sách <span className={styles.required}>*</span>
           </h3>
           <div className={`${styles.formField} ${styles.descriptionEditorWrap}`}>
-            <TipTapEditor
-              id="edit-description"
-              value={form.description}
-              onChange={(html) => setField('description', html)}
-              placeholder="Mô tả ngắn (in đậm, in nghiêng, danh sách, link...)"
-              disabled={disabled}
-            />
+            {descriptionEditorReady ? (
+              <TipTapEditor
+                key={book.id}
+                id="edit-description"
+                value={form.description}
+                onChange={(html) => setField('description', html)}
+                placeholder="Mô tả ngắn (in đậm, in nghiêng, danh sách, link...)"
+                disabled={disabled}
+              />
+            ) : (
+              <div className={styles.descriptionEditorSkeleton}>Đang tải nội dung mô tả…</div>
+            )}
             {errors.description && <span className={styles.formError}>{errors.description}</span>}
           </div>
         </section>

@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useNotification } from '../../contexts/NotificationContext'
 import authApi from '../../services/apis/authApi'
 import type { APIResponseError } from '../../services/apis/config'
+import { PATHS } from '../../layouts/DashboardLayout'
 import styles from './Login.module.css'
 
 function Login() {
@@ -46,7 +47,7 @@ function Login() {
       localStorage.setItem('accessToken', res.data.accessToken)
       const profileRes = await authApi.getProfile()
       login(profileRes.data)
-      navigate('/', { replace: true })
+      navigate(PATHS.home, { replace: true })
     } catch (err) {
       const apiError = err as APIResponseError
       const msg = apiError?.message || apiError?.error || 'Đăng nhập thất bại. Vui lòng thử lại.'

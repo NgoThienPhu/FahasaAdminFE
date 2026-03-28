@@ -1,16 +1,59 @@
 import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import type { IconType } from 'react-icons'
 import { FiHome, FiUsers, FiPackage, FiShoppingCart, FiLogOut, FiBook, FiTag } from 'react-icons/fi'
 import { useAuth } from '../contexts/AuthContext'
 import styles from './DashboardLayout.module.css'
 
-const navItems = [
-  { to: '/', end: true, icon: FiHome, label: 'Trang chủ' },
-  { to: '/users', end: false, icon: FiUsers, label: 'Người dùng' },
-  { to: '/products', end: false, icon: FiPackage, label: 'Sách' },
-  { to: '/categories', end: false, icon: FiTag, label: 'Danh mục sách' },
-  { to: '/orders', end: false, icon: FiShoppingCart, label: 'Đơn hàng' },
-]
+export const PATHS = {
+  login: '/login',
+  home: '/',
+  users: '/users',
+  products: '/products',
+  categories: '/categories',
+  orders: '/orders',
+} as const
+
+export type DashboardMenuId =
+  | 'home'
+  | 'users'
+  | 'products'
+  | 'categories'
+  | 'orders'
+
+export type DashboardNavItem = {
+  id: DashboardMenuId
+  path: string
+  label: string
+  end: boolean
+}
+
+const DASHBOARD_NAV: readonly DashboardNavItem[] = [
+  { id: 'home', path: PATHS.home, label: 'Trang chủ', end: true },
+  { id: 'users', path: PATHS.users, label: 'Người dùng', end: false },
+  { id: 'products', path: PATHS.products, label: 'Sách', end: false },
+  { id: 'categories', path: PATHS.categories, label: 'Danh mục sách', end: false },
+  { id: 'orders', path: PATHS.orders, label: 'Đơn hàng', end: false },
+] as const
+
+export type ProductDetailAction = 'view' | 'edit'
+
+export function productDetailPath(id: string | number, action: ProductDetailAction = 'view'): string {
+  const base = `${PATHS.products}/${id}`
+  return `${base}?action=${action}`
+}
+
+export function productEditPath(id: string | number): string {
+  return productDetailPath(id, 'edit')
+}
+
+const NAV_ICONS: Record<DashboardMenuId, IconType> = {
+  home: FiHome,
+  users: FiUsers,
+  products: FiPackage,
+  categories: FiTag,
+  orders: FiShoppingCart,
+}
 
 function DashboardLayout() {
   const navigate = useNavigate()
@@ -23,7 +66,7 @@ function DashboardLayout() {
   const handleConfirmLogout = async () => {
     closeLogoutModal()
     await logout()
-    navigate('/login', { replace: true })
+    navigate(PATHS.login, { replace: true })
   }
 
   return (
@@ -43,20 +86,23 @@ function DashboardLayout() {
         <nav>
           <p className={styles.navLabel}>Menu</p>
           <ul className={styles.nav}>
-            {navItems.map(({ to, end, icon: Icon, label }) => (
-              <li key={to} className={styles.navItem}>
-                <NavLink
-                  to={to}
-                  end={end}
-                  className={({ isActive }) =>
-                    isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
-                  }
-                >
-                  <Icon className={styles.navIcon} aria-hidden />
-                  {label}
-                </NavLink>
-              </li>
-            ))}
+            {DASHBOARD_NAV.map(({ id, path, label, end }) => {
+              const Icon = NAV_ICONS[id]
+              return (
+                <li key={id} className={styles.navItem}>
+                  <NavLink
+                    to={path}
+                    end={end}
+                    className={({ isActive }) =>
+                      isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
+                    }
+                  >
+                    <Icon className={styles.navIcon} aria-hidden />
+                    {label}
+                  </NavLink>
+                </li>
+              )
+            })}
           </ul>
         </nav>
         <div className={styles.sidebarFooter}>
